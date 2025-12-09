@@ -3,6 +3,8 @@ import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsModal from './components/SettingsModal';
 
+import { DEFAULT_MODEL } from './constants/models';
+
 function App() {
     const [conversations, setConversations] = useState([]);
     const [currentCid, setCurrentCid] = useState(null);
@@ -13,7 +15,7 @@ function App() {
     // Settings State
     const [apiKey, setApiKey] = useState(localStorage.getItem('openai_key') || '');
     const [systemPrompt, setSystemPrompt] = useState(localStorage.getItem('system_prompt') || 'You are a helpful assistant.');
-    const [model, setModel] = useState('gpt-5-nano');
+    const [model, setModel] = useState(DEFAULT_MODEL);
 
     // Load Conversations on Mount
     useEffect(() => {
