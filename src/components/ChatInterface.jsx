@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
+import { AVAILABLE_MODELS } from '../constants/models';
 
 const ChatInterface = ({
     currentConversationId,
@@ -60,10 +61,11 @@ const ChatInterface = ({
                             onChange={(e) => setModel(e.target.value)}
                             className="bg-transparent text-sm font-bold text-gray-900 dark:text-white focus:outline-none cursor-pointer appearance-none pr-4"
                         >
-                            <option value="gpt-5-nano">GPT-5 Nano (OpenAI)</option>
-                            <option value="gpt-3.5-turbo">GPT-3.5 (OpenAI)</option>
-                            <option value="gpt-4o">GPT-4o (OpenAI)</option>
-                            {/* Add other options as needed */}
+                            {AVAILABLE_MODELS.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                    {m.name}
+                                </option>
+                            ))}
                         </select>
                         <svg className="absolute right-3 pointer-events-none text-gray-500" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M6 9l6 6 6-6" />
