@@ -114,29 +114,51 @@ function setupIPC() {
             // 2. Save User Msg
             await run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)', [cid, 'user', message]);
 
-            // 3. Build Context
-            // We need previous messages
-            const history = await all('SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at ASC', [cid]);
-            // Filter out the one we just added? No, OpenAI needs it. 
-            // Actually `history` contains it now.
-            // Construct payload
-            const messagesPayload = [
-                { role: "system", content: systemPrompt || "You are a helpful assistant." },
-                ...history.map(m => ({ role: m.role, content: m.content }))
-            ];
+            // 3. Prepare OpenAI Call
+            // Get the last_response_id to continue conversation if available
+            const conv = await get('SELECT last_response_id, title FROM conversations WHERE id = ?', [cid]);
+            const lastResponseId = conv ? conv.last_response_id : null;
+            const currentTitle = conv ? conv.title : 'New Chat';
+
+            // If we have a previous ID, we check if we need instructions. 
+            // Usually instructions are set at the start (Turn 1). 
+            // If we are starting a new chain (no ID), pass instructions.
+            // If systemPrompt is provided explicitly, we can pass it, but usually standard behavior is sticky instructions.
+            // For now, if it's Turn 1 (no lastResponseId), we pass instructions.
+            const instructions = !lastResponseId ? (systemPrompt || "You are a helpful assistant.") : undefined;
 
             // 4. Call OpenAI
-            const aiContent = await getOpenAIResponse(apiKey, messagesPayload, model || 'gpt-5-nano');
+            console.log("Calling OpenAI with instructions:", instructions ? "YES" : "NO", "LastID:", lastResponseId);
+            // Now we pass 'message' as input, not the whole history array
+            const aiResponse = await getOpenAIResponse(
+                apiKey,
+                message,
+                model || 'gpt-5-nano',
+                instructions,
+                lastResponseId
+            );
+
+            console.log("AI Response Object:", JSON.stringify(aiResponse, null, 2));
+
+            const aiContent = aiResponse.output_text;
+            const newResponseId = aiResponse.response_id;
 
             // 5. Save AI Msg
             await run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)', [cid, 'assistant', aiContent]);
 
-            // 6. Update Title if it's "New Chat" and early in convo
-            // Check if title is still New Chat
-            const conv = await get('SELECT title FROM conversations WHERE id = ?', [cid]);
-            if (conv && conv.title === 'New Chat') {
-                // If history is short (e.g. just user msg + ai msg + system, so < 4?)
-                if (history.length <= 4) {
+            // 6. Update Conversation State (last_response_id)
+            if (newResponseId) {
+                console.log("Updating conversation", cid, "with newResponseId:", newResponseId);
+                await run('UPDATE conversations SET last_response_id = ? WHERE id = ?', [newResponseId, cid]);
+            } else {
+                console.warn("No newResponseId received from OpenAI service.");
+            }
+
+            // 7. Update Title if it's "New Chat" and early in convo
+            // We can check message count or just use the logic we had.
+            if (currentTitle === 'New Chat') {
+                const countResult = await get('SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?', [cid]);
+                if (countResult && countResult.count <= 4) {
                     const newTitle = message.substring(0, 30) + (message.length > 30 ? "..." : "");
                     await run('UPDATE conversations SET title = ? WHERE id = ?', [newTitle, cid]);
                 }

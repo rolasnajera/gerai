@@ -43,6 +43,24 @@ function initDb() {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )`);
+
+        // Migration to add last_response_id if missing
+        db.all("PRAGMA table_info(conversations)", (err, rows) => {
+            if (err) {
+                console.error("Error checking table info:", err);
+                return;
+            }
+            const hasColumn = rows.some(row => row.name === 'last_response_id');
+            if (!hasColumn) {
+                db.run("ALTER TABLE conversations ADD COLUMN last_response_id TEXT", (err) => {
+                    if (err) {
+                        console.error("Error adding last_response_id column:", err);
+                    } else {
+                        console.log("Successfully added last_response_id column to conversations.");
+                    }
+                });
+            }
+        });
     });
 }
 
