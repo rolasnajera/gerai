@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 
-const SettingsModal = ({ isOpen, onClose, apiKey, setApiKey, systemPrompt, setSystemPrompt }) => {
+interface SettingsModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    apiKey: string;
+    setApiKey: (key: string) => void;
+    systemPrompt: string;
+    setSystemPrompt: (prompt: string) => void;
+}
+
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, setApiKey, systemPrompt, setSystemPrompt }) => {
     const [localKey, setLocalKey] = useState(apiKey);
     const [localPrompt, setLocalPrompt] = useState(systemPrompt);
 
@@ -43,7 +52,7 @@ const SettingsModal = ({ isOpen, onClose, apiKey, setApiKey, systemPrompt, setSy
                             value={localPrompt}
                             onChange={(e) => setLocalPrompt(e.target.value)}
                             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-sm dark:text-white"
-                            rows="3"
+                            rows={3}
                         />
                     </div>
                 </div>

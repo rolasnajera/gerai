@@ -1,16 +1,20 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+import sqlite3 from 'sqlite3';
+import path from 'path';
+import { Database } from 'sqlite3';
 
-let db;
+const sqliteVerbose = sqlite3.verbose();
 
-function connect(customPath) {
+let db: Database | undefined;
+
+export function connect(customPath?: string): void {
     if (db) return;
 
     // Default to local for dev if no path provided, though main.js should provide one
+    // dirname might change depending on the build structure, but tsup usually bundles relatively, or we rely on main.ts passing the path
     const targetPath = customPath || path.resolve(__dirname, 'gerai.db');
     console.log("Database path:", targetPath);
 
-    db = new sqlite3.Database(targetPath, (err) => {
+    db = new sqliteVerbose.Database(targetPath, (err: Error | null) => {
         if (err) {
             console.error('Error opening database', err.message);
         } else {
@@ -20,13 +24,15 @@ function connect(customPath) {
     });
 }
 
-function initDb() {
+export function initDb(): void {
+    if (!db) return;
+
     db.serialize(() => {
         // Enable Foreign Keys
-        db.run("PRAGMA foreign_keys = ON");
+        db!.run("PRAGMA foreign_keys = ON");
 
         // Create Conversations Table
-        db.run(`CREATE TABLE IF NOT EXISTS conversations (
+        db!.run(`CREATE TABLE IF NOT EXISTS conversations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT DEFAULT 'New Chat',
             system_prompt TEXT DEFAULT 'You are a helpful assistant.',
@@ -35,7 +41,7 @@ function initDb() {
         )`);
 
         // Create Messages Table
-        db.run(`CREATE TABLE IF NOT EXISTS messages (
+        db!.run(`CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             conversation_id INTEGER,
             role TEXT NOT NULL,
@@ -45,14 +51,14 @@ function initDb() {
         )`);
 
         // Migration to add last_response_id if missing
-        db.all("PRAGMA table_info(conversations)", (err, rows) => {
+        db!.all("PRAGMA table_info(conversations)", (err: Error | null, rows: any[]) => {
             if (err) {
                 console.error("Error checking table info:", err);
                 return;
             }
             const hasColumn = rows.some(row => row.name === 'last_response_id');
             if (!hasColumn) {
-                db.run("ALTER TABLE conversations ADD COLUMN last_response_id TEXT", (err) => {
+                db!.run("ALTER TABLE conversations ADD COLUMN last_response_id TEXT", (err: Error | null) => {
                     if (err) {
                         console.error("Error adding last_response_id column:", err);
                     } else {
@@ -64,10 +70,18 @@ function initDb() {
     });
 }
 
-// Helper to run query returning Promise (for inserts/updates)
-function run(sql, params = []) {
+// Helper to run a query returning Promise (for inserts/updates)
+interface RunResult {
+    id: number;
+    changes: number;
+}
+
+export function run(sql: string, params: any[] = []): Promise<RunResult> {
     return new Promise((resolve, reject) => {
-        db.run(sql, params, function (err) {
+        if (!db) {
+            return reject(new Error("Database not connected"));
+        }
+        db.run(sql, params, function (this: sqlite3.RunResult, err: Error | null) {
             if (err) {
                 console.log('Error running sql ' + sql);
                 console.log(err);
@@ -79,10 +93,13 @@ function run(sql, params = []) {
     });
 }
 
-// Helper to get single row
-function get(sql, params = []) {
+// Helper to get a single row
+export function get<T = any>(sql: string, params: any[] = []): Promise<T | undefined> {
     return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, result) => {
+        if (!db) {
+            return reject(new Error("Database not connected"));
+        }
+        db.get(sql, params, (err: Error | null, result: T) => {
             if (err) {
                 console.log('Error running sql: ' + sql);
                 console.log(err);
@@ -95,9 +112,12 @@ function get(sql, params = []) {
 }
 
 // Helper to get all rows
-function all(sql, params = []) {
+export function all<T = any>(sql: string, params: any[] = []): Promise<T[]> {
     return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
+        if (!db) {
+            return reject(new Error("Database not connected"));
+        }
+        db.all(sql, params, (err: Error | null, rows: T[]) => {
             if (err) {
                 console.log('Error running sql: ' + sql);
                 console.log(err);
@@ -108,5 +128,3 @@ function all(sql, params = []) {
         });
     });
 }
-
-module.exports = { connect, run, get, all };

@@ -1,9 +1,19 @@
-const { OpenAI } = require('openai');
+import { OpenAI } from 'openai';
+import fs from 'fs';
+import path from 'path';
 
-const fs = require('fs');
-const path = require('path');
+interface OpenAIResponseResult {
+    output_text: string;
+    response_id?: string;
+}
 
-async function getOpenAIResponse(apiKey, input, model = 'gpt-5-mini', instructions, previousResponseId) {
+export async function getOpenAIResponse(
+    apiKey: string,
+    input: string,
+    model: string = 'gpt-5-mini',
+    instructions?: string,
+    previousResponseId?: string
+): Promise<OpenAIResponseResult> {
     try {
         console.log('--- OpenAI Request ---');
         console.log('Model:', model);
@@ -15,7 +25,8 @@ async function getOpenAIResponse(apiKey, input, model = 'gpt-5-mini', instructio
             dangerouslyAllowBrowser: false
         });
 
-        const params = {
+        // Use 'any' type for params if 'responses.create' types are not fully defined for this beta feature in the current SDK version types
+        const params: any = {
             model: model,
             input: input,
             store: true,
@@ -29,10 +40,12 @@ async function getOpenAIResponse(apiKey, input, model = 'gpt-5-mini', instructio
             params.previous_response_id = previousResponseId;
         }
 
-        const response = await client.responses.create(params);
+        // Assuming 'responses' property exists on client. If strict types fail, we might need cast.
+        // @ts-ignore
+        const response = await client.responses.create(params) as any;
 
         // Debug logging to file
-        const logPath = path.resolve(__dirname, '../openai_debug.log');
+        const logPath = path.resolve(__dirname, '../../openai_debug.log'); // adjusted path since we are in electron/services
         const debugInfo = {
             timestamp: new Date().toISOString(),
             responseKeys: Object.keys(response),
@@ -50,12 +63,11 @@ async function getOpenAIResponse(apiKey, input, model = 'gpt-5-mini', instructio
             output_text: response.output_text,
             response_id: response.response_id || response.id
         };
-    } catch (error) {
+    } catch (error: any) {
         console.error('OpenAI API Error:', error);
-        const logPath = path.resolve(__dirname, '../openai_debug.log');
+        // adjusted path
+        const logPath = path.resolve(__dirname, '../../openai_debug.log');
         fs.appendFileSync(logPath, `ERROR: ${error.message}\n${error.stack}\n`);
         throw new Error('Failed to fetch response from OpenAI');
     }
 }
-
-module.exports = { getOpenAIResponse };

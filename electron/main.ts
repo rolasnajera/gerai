@@ -1,37 +1,41 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-const { run, get, all } = require('../db');
-const { getOpenAIResponse } = require('../services/openai');
+import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
+import path from 'path';
+import { run, get, all, connect } from './db';
+import { getOpenAIResponse } from './services/openai';
 
-let mainWindow;
+let mainWindow: BrowserWindow | undefined;
 
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1280,
         height: 850,
-        titleBarStyle: 'hiddenInset', // Mac-like nice titlebar
+        titleBarStyle: 'hiddenInset', // Mac-like nice title bar
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
+            preload: path.join(__dirname, 'preload.js'), // tsup outputs to the same dir
             nodeIntegration: false,
             contextIsolation: true,
         },
     });
 
-    if (process.env.npm_lifecycle_event === 'electron:dev') {
-        mainWindow.loadURL('http://localhost:5173');
+    if (process.env.npm_lifecycle_event === 'electron:dev' || process.env.npm_lifecycle_event === 'electron:watch') {
+        mainWindow.loadURL('http://localhost:5173').catch(e => console.error('Failed to load URL:', e));
         mainWindow.webContents.openDevTools();
     } else {
-        mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+        mainWindow.loadFile(path.join(__dirname, '../dist/index.html')).catch(e => console.error('Failed to load file:', e));
     }
 }
 
 app.whenReady().then(() => {
-    // Initialize DB directly in userData
-    const userDataPath = app.getPath('userData');
-    const dbPath = path.join(userDataPath, 'gerai.db');
+    // Determine if we are running in dev mode
+    const isDev = process.env.npm_lifecycle_event === 'electron:dev' || process.env.npm_lifecycle_event === 'electron:watch';
 
-    // Ensure the function is called
-    const { connect } = require('../db');
+    // Initialize DB
+    // Dev: Use current working directory (project root)
+    // Prod: Use OS standard User Data directory
+    const dbFolder = isDev ? process.cwd() : app.getPath('userData');
+    const dbPath = path.join(dbFolder, 'gerai.db');
+
+    // Connect to DB
     connect(dbPath);
 
     createWindow();
@@ -61,7 +65,7 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('get-messages', async (event, cid) => {
+    ipcMain.handle('get-messages', async (_event: IpcMainInvokeEvent, cid: number) => {
         try {
             if (!cid) return [];
             return await all('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC', [cid]);
@@ -81,7 +85,7 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('rename-conversation', async (event, { id, title }) => {
+    ipcMain.handle('rename-conversation', async (_event: IpcMainInvokeEvent, { id, title }: { id: number, title: string }) => {
         try {
             await run('UPDATE conversations SET title = ? WHERE id = ?', [title, id]);
             return true;
@@ -91,7 +95,7 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('delete-conversation', async (event, id) => {
+    ipcMain.handle('delete-conversation', async (_event: IpcMainInvokeEvent, id: number) => {
         try {
             await run('DELETE FROM conversations WHERE id = ?', [id]);
             return true;
@@ -101,11 +105,11 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('send-message', async (event, { conversationId, message, model, apiKey, systemPrompt }) => {
+    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, apiKey, systemPrompt }: { conversationId?: number, message: string, model?: string, apiKey: string, systemPrompt?: string }) => {
         let cid = conversationId;
 
         try {
-            // 1. If new chat needed
+            // 1. If a new chat is needed
             if (!cid) {
                 const res = await run('INSERT INTO conversations (title) VALUES (?)', ['New Chat']);
                 cid = res.id;
@@ -116,8 +120,8 @@ function setupIPC() {
 
             // 3. Prepare OpenAI Call
             // Get the last_response_id to continue conversation if available
-            const conv = await get('SELECT last_response_id, title FROM conversations WHERE id = ?', [cid]);
-            const lastResponseId = conv ? conv.last_response_id : null;
+            const conv = await get<{ last_response_id: string, title: string }>('SELECT last_response_id, title FROM conversations WHERE id = ?', [cid]);
+            const lastResponseId = conv ? conv.last_response_id : undefined; // getOpenAIResponse expects string | undefined
             const currentTitle = conv ? conv.title : 'New Chat';
 
             // If we have a previous ID, we check if we need instructions. 
@@ -155,9 +159,9 @@ function setupIPC() {
             }
 
             // 7. Update Title if it's "New Chat" and early in convo
-            // We can check message count or just use the logic we had.
+            // We can check the message count or just use the logic we had.
             if (currentTitle === 'New Chat') {
-                const countResult = await get('SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?', [cid]);
+                const countResult = await get<{ count: number }>('SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?', [cid]);
                 if (countResult && countResult.count <= 4) {
                     const newTitle = message.substring(0, 30) + (message.length > 30 ? "..." : "");
                     await run('UPDATE conversations SET title = ? WHERE id = ?', [newTitle, cid]);
@@ -166,10 +170,10 @@ function setupIPC() {
 
             return { content: aiContent, conversationId: cid };
 
-        } catch (err) {
+        } catch (err: any) {
             console.error('IPC send-message error:', err);
-            // Return error as content so UI can show it? Or throw?
-            // Throwing allows UI catch block to handle it.
+            // Return error as content so the UI can show it? Or throw?
+            // Throwing allows the UI catch block to handle it.
             throw new Error(err.message || 'Error processing message');
         }
     });
