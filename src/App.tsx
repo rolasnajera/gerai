@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsModal from './components/SettingsModal';
+import { Message, Conversation } from './types';
 
 import { DEFAULT_MODEL } from './constants/models';
 
 function App() {
-    const [conversations, setConversations] = useState([]);
-    const [currentCid, setCurrentCid] = useState(null);
-    const [messages, setMessages] = useState([]);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [currentCid, setCurrentCid] = useState<number | null>(null);
+    const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -39,7 +40,7 @@ function App() {
         }
     };
 
-    const loadMessages = async (cid) => {
+    const loadMessages = async (cid: number) => {
         if (window.electron) {
             try {
                 const msgs = await window.electron.invoke('get-messages', cid);
@@ -50,7 +51,7 @@ function App() {
         }
     };
 
-    const handleSelectConversation = (cid) => {
+    const handleSelectConversation = (cid: number) => {
         setCurrentCid(cid);
         loadMessages(cid);
     };
@@ -68,14 +69,20 @@ function App() {
         } else {
             // Fallback for UIdev without Electron
             const fakeId = Date.now();
-            const newChat = { id: fakeId, title: 'New Chat' };
+            const newChat: Conversation = {
+                id: fakeId,
+                title: 'New Chat',
+                model: DEFAULT_MODEL,
+                system_prompt: 'You are a helpful assistant.',
+                created_at: new Date().toISOString()
+            };
             setConversations([newChat, ...conversations]);
             setCurrentCid(fakeId);
             setMessages([]);
         }
     };
 
-    const handleSendMessage = async (text, selectedModel) => {
+    const handleSendMessage = async (text: string, selectedModel: string) => {
         if (!apiKey) {
             setSettingsOpen(true);
             alert("Please set your API Key first.");
@@ -83,7 +90,13 @@ function App() {
         }
 
         // Optimistic Update
-        const userMsg = { role: 'user', content: text };
+        const userMsg: Message = {
+            id: Date.now(), // Temp ID
+            conversation_id: currentCid || 0,
+            role: 'user',
+            content: text,
+            created_at: new Date().toISOString()
+        };
         setMessages(prev => [...prev, userMsg]);
         setIsLoading(true);
 
@@ -110,24 +123,44 @@ function App() {
                     if (messages.length === 0) loadConversations();
                 }
 
-                const aiMsg = { role: 'assistant', content: response.content };
+                const aiMsg: Message = {
+                    id: Date.now() + 1, // Temp ID
+                    conversation_id: response.conversationId || currentCid || 0,
+                    role: 'assistant',
+                    content: response.content,
+                    created_at: new Date().toISOString()
+                };
                 setMessages(prev => [...prev, aiMsg]);
-            } catch (err) {
+            } catch (err: any) {
                 console.error(err);
-                setMessages(prev => [...prev, { role: 'assistant', content: "Error: " + err.message }]);
+                const errorMsg: Message = {
+                    id: Date.now(),
+                    conversation_id: currentCid || 0,
+                    role: 'assistant',
+                    content: "Error: " + err.message,
+                    created_at: new Date().toISOString()
+                };
+                setMessages(prev => [...prev, errorMsg]);
             } finally {
                 setIsLoading(false);
             }
         } else {
             // Mock
             setTimeout(() => {
-                setMessages(prev => [...prev, { role: 'assistant', content: "This is a mock response. Electron not detected." }]);
+                const mockMsg: Message = {
+                    id: Date.now(),
+                    conversation_id: currentCid || 0,
+                    role: 'assistant',
+                    content: "This is a mock response. Electron not detected.",
+                    created_at: new Date().toISOString()
+                };
+                setMessages(prev => [...prev, mockMsg]);
                 setIsLoading(false);
             }, 1000);
         }
     };
 
-    const handleDeleteChat = async (cid) => {
+    const handleDeleteChat = async (cid: number) => {
         if (!confirm("Are you sure?")) return;
         if (window.electron) {
             await window.electron.invoke('delete-conversation', cid);
@@ -139,7 +172,7 @@ function App() {
         }
     };
 
-    const handleRenameChat = async (cid, oldTitle) => {
+    const handleRenameChat = async (cid: number, oldTitle: string) => {
         const newTitle = prompt("Rename:", oldTitle);
         if (newTitle && newTitle !== oldTitle) {
             if (window.electron) {

@@ -1,8 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import { AVAILABLE_MODELS } from '../constants/models';
+import { Message } from '../types';
 
-const ChatInterface = ({
+interface ChatInterfaceProps {
+    currentConversationId: number | null;
+    messages: Message[];
+    onSendMessage: (text: string, model: string) => void;
+    isLoading: boolean;
+    model: string;
+    setModel: (model: string) => void;
+}
+
+const ChatInterface: React.FC<ChatInterfaceProps> = ({
     currentConversationId,
     messages,
     onSendMessage,
@@ -11,8 +21,8 @@ const ChatInterface = ({
     setModel
 }) => {
     const [input, setInput] = useState('');
-    const messagesEndRef = useRef(null);
-    const textareaRef = useRef(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -22,7 +32,7 @@ const ChatInterface = ({
         scrollToBottom();
     }, [messages, isLoading]);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading) return;
         onSendMessage(input, model);
@@ -32,7 +42,7 @@ const ChatInterface = ({
         }
     };
 
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSubmit(e);
@@ -41,9 +51,9 @@ const ChatInterface = ({
 
     if (!currentConversationId && messages.length === 0) {
         // Empty state for "No chat selected" or "Start new chat"
-        // But typically "New Chat" creates an ID or we show empty state.
+        // But typically, "New Chat" creates an ID, or we show an empty state.
         // If messages are empty and we have an ID, it's a fresh chat.
-        // If we don't have an ID, it's welcome screen.
+        // If we don't have an ID, it's the welcome screen.
     }
 
     return (
@@ -93,7 +103,8 @@ const ChatInterface = ({
                                 <div className="text-xs text-gray-400 uppercase font-semibold mx-1">{msg.role}</div>
                                 <div
                                     className={`${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700'} px-4 py-3 rounded-2xl max-w-[85%] prose dark:prose-invert`}
-                                    dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }}
+                                    // marked.parse returns string | Promise<string>. In sync mode it's string.
+                                    dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }}
                                 />
                             </div>
                         ))
@@ -121,7 +132,7 @@ const ChatInterface = ({
                             onKeyDown={handleKeyDown}
                             className="w-full max-h-48 p-4 pr-14 bg-transparent resize-none focus:outline-none text-base text-gray-700 dark:text-gray-200 placeholder-gray-400"
                             placeholder="Type your message... (Shift+Enter for new line)"
-                            rows="1"
+                            rows={1}
                             required
                         />
                         <button

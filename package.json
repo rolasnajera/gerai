@@ -2,12 +2,13 @@
   "name": "gerai",
   "version": "1.0.0",
   "description": "A modern, privacy-focused desktop AI chat application",
-  "main": "electron/main.js",
+  "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently \"npm run vite:dev\" \"wait-on tcp:5173 && npm run electron:dev\"",
+    "dev": "concurrently \"npm run vite:dev\" \"wait-on tcp:5173 && npm run electron:watch\"",
     "vite:dev": "vite",
-    "electron:dev": "electron .",
-    "build": "vite build",
+    "electron:watch": "tsup --watch --onSuccess \"electron .\"",
+    "electron:build": "tsup",
+    "build": "tsc && vite build && npm run electron:build",
     "dist": "npm run build && electron-builder",
     "preview": "vite preview",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -16,11 +17,11 @@
     "appId": "com.gerai.app",
     "productName": "GERAI",
     "directories": {
-      "output": "dist-electron"
+      "output": "release"
     },
     "files": [
       "dist/**/*",
-      "electron/**/*",
+      "dist-electron/**/*",
       "services/**/*",
       "db.js",
       "package.json"
@@ -53,13 +54,19 @@
   },
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
+    "@types/node": "^24.10.2",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@types/sqlite3": "^3.1.11",
     "@vitejs/plugin-react": "^5.1.2",
     "autoprefixer": "^10.4.22",
     "concurrently": "^9.2.1",
     "electron": "^39.2.6",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^26.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.18",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
     "vite": "^7.2.7",
     "wait-on": "^9.0.3"
   }

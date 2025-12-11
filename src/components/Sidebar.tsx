@@ -1,6 +1,17 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Conversation } from '../types';
 
-const Sidebar = ({
+interface SidebarProps {
+    conversations: Conversation[];
+    currentCid: number | null;
+    onSelectConversation: (cid: number) => void;
+    onCreateNewChat: () => void;
+    onDeleteChat: (cid: number) => void;
+    onRenameChat: (cid: number, currentTitle: string) => void;
+    onOpenSettings: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({
     conversations,
     currentCid,
     onSelectConversation,
