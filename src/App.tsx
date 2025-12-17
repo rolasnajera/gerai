@@ -13,6 +13,11 @@ function App() {
     const [isLoading, setIsLoading] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
 
+    // Streaming state
+    const [isStreaming, setIsStreaming] = useState(false);
+    const [streamingMessage, setStreamingMessage] = useState('');
+    const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
+
     // Settings State
     const [apiKey, setApiKey] = useState(localStorage.getItem('openai_key') || '');
     const [systemPrompt, setSystemPrompt] = useState(localStorage.getItem('system_prompt') || 'You are a helpful assistant.');
@@ -28,6 +33,68 @@ function App() {
         localStorage.setItem('openai_key', apiKey);
         localStorage.setItem('system_prompt', systemPrompt);
     }, [apiKey, systemPrompt]);
+
+    // Set up streaming event listeners
+    useEffect(() => {
+        if (!window.electron) return;
+
+        const handleStreamChunk = (data: { requestId: string, chunk: string }) => {
+            if (data.requestId === currentRequestId) {
+                setStreamingMessage(prev => prev + data.chunk);
+            }
+        };
+
+        const handleStreamComplete = (data: { requestId: string, conversationId: number, content: string }) => {
+            if (data.requestId === currentRequestId) {
+                setIsStreaming(false);
+                setStreamingMessage('');
+                setCurrentRequestId(null);
+                setIsLoading(false);
+
+                // Add the complete message to the messages list
+                const aiMsg: Message = {
+                    id: Date.now(),
+                    conversation_id: data.conversationId,
+                    role: 'assistant',
+                    content: data.content,
+                    created_at: new Date().toISOString()
+                };
+                setMessages(prev => [...prev, aiMsg]);
+
+                // Reload conversations to update title if needed
+                if (messages.length === 0) loadConversations();
+            }
+        };
+
+        const handleStreamError = (data: { requestId: string, error: string }) => {
+            if (data.requestId === currentRequestId) {
+                setIsStreaming(false);
+                setStreamingMessage('');
+                setCurrentRequestId(null);
+                setIsLoading(false);
+
+                // Add error message
+                const errorMsg: Message = {
+                    id: Date.now(),
+                    conversation_id: currentCid || 0,
+                    role: 'assistant',
+                    content: "Error: " + data.error,
+                    created_at: new Date().toISOString()
+                };
+                setMessages(prev => [...prev, errorMsg]);
+            }
+        };
+
+        const chunkListener = window.electron.on('stream-chunk', handleStreamChunk);
+        const completeListener = window.electron.on('stream-complete', handleStreamComplete);
+        const errorListener = window.electron.on('stream-error', handleStreamError);
+
+        return () => {
+            window.electron.removeListener('stream-chunk', chunkListener);
+            window.electron.removeListener('stream-complete', completeListener);
+            window.electron.removeListener('stream-error', errorListener);
+        };
+    }, [currentRequestId, currentCid, messages.length]);
 
     const loadConversations = async () => {
         if (window.electron) {
@@ -99,40 +166,37 @@ function App() {
         };
         setMessages(prev => [...prev, userMsg]);
         setIsLoading(true);
+        setStreamingMessage(''); // Clear any previous streaming message
 
         if (window.electron) {
             try {
+                // Start streaming
                 const response = await window.electron.invoke('send-message', {
                     conversationId: currentCid,
                     message: text,
                     model: selectedModel,
                     apiKey,
-                    systemPrompt // Send system prompt so backend can use it for context
+                    systemPrompt
                 });
 
-                // If it was a new chat, the backend might have updated the ID or we just reload
-                // If currentCid is null, backend handles creation, but we need the new ID back.
-                // My 'send-message' handler should return: { content: string, conversationId: number, ... }
+                // Store request ID and start streaming state
+                setCurrentRequestId(response.requestId);
+                setIsStreaming(true);
 
+                // Update conversation ID if it was a new chat
                 if (!currentCid && response.conversationId) {
                     setCurrentCid(response.conversationId);
-                    loadConversations(); // Title might have changed or list needs update
-                } else {
-                    // Refresh title if it changed (usually specifically on first message)
-                    // For simplicity, reload conversations could be done lazily
-                    if (messages.length === 0) loadConversations();
+                    loadConversations();
                 }
 
-                const aiMsg: Message = {
-                    id: Date.now() + 1, // Temp ID
-                    conversation_id: response.conversationId || currentCid || 0,
-                    role: 'assistant',
-                    content: response.content,
-                    created_at: new Date().toISOString()
-                };
-                setMessages(prev => [...prev, aiMsg]);
+                // Note: The actual message will be added via stream-complete event listener
             } catch (err: any) {
                 console.error(err);
+                setIsLoading(false);
+                setIsStreaming(false);
+                setStreamingMessage('');
+                setCurrentRequestId(null);
+
                 const errorMsg: Message = {
                     id: Date.now(),
                     conversation_id: currentCid || 0,
@@ -141,11 +205,9 @@ function App() {
                     created_at: new Date().toISOString()
                 };
                 setMessages(prev => [...prev, errorMsg]);
-            } finally {
-                setIsLoading(false);
             }
         } else {
-            // Mock
+            // Mock for development without Electron
             setTimeout(() => {
                 const mockMsg: Message = {
                     id: Date.now(),
@@ -157,6 +219,34 @@ function App() {
                 setMessages(prev => [...prev, mockMsg]);
                 setIsLoading(false);
             }, 1000);
+        }
+    };
+
+    const handleCancelMessage = async () => {
+        if (!currentRequestId || !window.electron) return;
+
+        try {
+            await window.electron.invoke('cancel-message', currentRequestId);
+
+            // Save the partial message if any
+            if (streamingMessage) {
+                const partialMsg: Message = {
+                    id: Date.now(),
+                    conversation_id: currentCid || 0,
+                    role: 'assistant',
+                    content: streamingMessage + "\n\n[Response canceled]",
+                    created_at: new Date().toISOString()
+                };
+                setMessages(prev => [...prev, partialMsg]);
+            }
+
+            // Reset state
+            setIsStreaming(false);
+            setStreamingMessage('');
+            setCurrentRequestId(null);
+            setIsLoading(false);
+        } catch (err: any) {
+            console.error('Cancel error:', err);
         }
     };
 
@@ -198,7 +288,10 @@ function App() {
                 currentConversationId={currentCid}
                 messages={messages}
                 onSendMessage={handleSendMessage}
+                onCancelMessage={handleCancelMessage}
                 isLoading={isLoading}
+                isStreaming={isStreaming}
+                streamingMessage={streamingMessage}
                 model={model}
                 setModel={setModel}
             />
