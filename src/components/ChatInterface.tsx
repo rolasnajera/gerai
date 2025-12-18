@@ -7,7 +7,10 @@ interface ChatInterfaceProps {
     currentConversationId: number | null;
     messages: Message[];
     onSendMessage: (text: string, model: string) => void;
+    onCancelMessage: () => void;
     isLoading: boolean;
+    isStreaming: boolean;
+    streamingMessage: string;
     model: string;
     setModel: (model: string) => void;
 }
@@ -16,7 +19,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     currentConversationId,
     messages,
     onSendMessage,
+    onCancelMessage,
     isLoading,
+    isStreaming,
+    streamingMessage,
     model,
     setModel
 }) => {
@@ -30,16 +36,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages, isLoading]);
+    }, [messages, isLoading, streamingMessage]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (!input.trim() || isLoading) return;
+        if (!input.trim() || isLoading || isStreaming) return;
         onSendMessage(input, model);
         setInput('');
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto'; // Reset height
         }
+    };
+
+    const handleCancel = () => {
+        onCancelMessage();
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -110,7 +120,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         ))
                     )}
 
-                    {isLoading && (
+                    {/* Streaming Message */}
+                    {isStreaming && streamingMessage && (
+                        <div className="flex flex-col gap-1 items-start mb-6">
+                            <div className="text-xs text-gray-400 uppercase font-semibold mx-1">assistant</div>
+                            <div className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-2 border-blue-400 dark:border-blue-600 px-4 py-3 rounded-2xl max-w-[85%] prose dark:prose-invert animate-pulse-border"
+                                dangerouslySetInnerHTML={{ __html: marked.parse(streamingMessage) as string }}
+                            />
+                        </div>
+                    )}
+
+                    {isLoading && !isStreaming && (
                         <div className="flex gap-2 items-center text-gray-400 text-sm animate-pulse ml-4 mb-6">
                             <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                             <div className="w-2 h-2 bg-gray-400 rounded-full animation-delay-200"></div>
@@ -135,16 +155,30 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             rows={1}
                             required
                         />
-                        <button
-                            type="submit"
-                            disabled={isLoading || !input.trim()}
-                            className="absolute right-2 bottom-2 p-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13"></line>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                            </svg>
-                        </button>
+                        {isStreaming ? (
+                            <button
+                                type="button"
+                                onClick={handleCancel}
+                                className="absolute right-2 bottom-2 p-1.5 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:opacity-80 transition-opacity"
+                                title="Cancel"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="6" y="6" width="12" height="12"></rect>
+                                </svg>
+                            </button>
+                        ) : (
+                            <button
+                                type="submit"
+                                disabled={isLoading || !input.trim()}
+                                className="absolute right-2 bottom-2 p-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
+                                title="Send"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                            </button>
+                        )}
                     </form>
                 </div>
             </div>

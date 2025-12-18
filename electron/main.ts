@@ -5,6 +5,9 @@ import { getOpenAIResponse } from './services/openai';
 
 let mainWindow: BrowserWindow | undefined;
 
+// Track active streaming requests
+const activeStreams = new Map<string, AbortController>();
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1280,
@@ -105,8 +108,10 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, apiKey, systemPrompt }: { conversationId?: number, message: string, model?: string, apiKey: string, systemPrompt?: string }) => {
+    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, apiKey, systemPrompt, requestId }: { conversationId?: number, message: string, model?: string, apiKey: string, systemPrompt?: string, requestId: string }) => {
         let cid = conversationId;
+        // Use the requestId provided by the frontend
+        // const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         try {
             // 1. If a new chat is needed
@@ -119,47 +124,58 @@ function setupIPC() {
             await run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)', [cid, 'user', message]);
 
             // 3. Prepare OpenAI Call
-            // Get the last_response_id to continue conversation if available
             const conv = await get<{ last_response_id: string, title: string }>('SELECT last_response_id, title FROM conversations WHERE id = ?', [cid]);
-            const lastResponseId = conv ? conv.last_response_id : undefined; // getOpenAIResponse expects string | undefined
+            const lastResponseId = conv ? conv.last_response_id : undefined;
             const currentTitle = conv ? conv.title : 'New Chat';
 
-            // If we have a previous ID, we check if we need instructions. 
-            // Usually instructions are set at the start (Turn 1). 
-            // If we are starting a new chain (no ID), pass instructions.
-            // If systemPrompt is provided explicitly, we can pass it, but usually standard behavior is sticky instructions.
-            // For now, if it's Turn 1 (no lastResponseId), we pass instructions.
             const instructions = !lastResponseId ? (systemPrompt || "You are a helpful assistant.") : undefined;
 
-            // 4. Call OpenAI
-            console.log("Calling OpenAI with instructions:", instructions ? "YES" : "NO", "LastID:", lastResponseId);
-            // Now we pass 'message' as input, not the whole history array
+            console.log("Calling OpenAI with streaming for request:", requestId);
+
+
+            // Create AbortController
+            const abortController = new AbortController();
+            activeStreams.set(requestId, abortController);
+
+            // 4. Call OpenAI with streaming callback
             const aiResponse = await getOpenAIResponse(
                 apiKey,
                 message,
+                (chunk: string) => {
+                    // Emit each delta to the renderer in real-time
+                    if (mainWindow && !mainWindow.isDestroyed()) {
+                        mainWindow.webContents.send('stream-chunk', { requestId, chunk });
+                    }
+                },
                 model || 'gpt-5-nano',
                 instructions,
-                lastResponseId
+                lastResponseId,
+                abortController.signal
             );
 
-            console.log("AI Response Object:", JSON.stringify(aiResponse, null, 2));
+            // Clean up
+            activeStreams.delete(requestId);
 
-            const aiContent = aiResponse.output_text;
+            let aiContent = aiResponse.output_text;
             const newResponseId = aiResponse.response_id;
+            const isAborted = aiResponse.aborted;
 
-            // 5. Save AI Msg
-            await run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)', [cid, 'assistant', aiContent]);
+            if (isAborted) {
+                aiContent += (aiContent ? "\n\n" : "") + "[Response canceled]";
+            }
 
-            // 6. Update Conversation State (last_response_id)
+            // 5. Save AI Msg (even if aborted, if there's content or it was aborted)
+            if (aiContent || isAborted) {
+                await run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)', [cid, 'assistant', aiContent || '[Response canceled]']);
+            }
+
+            // 6. Update Conversation State
             if (newResponseId) {
                 console.log("Updating conversation", cid, "with newResponseId:", newResponseId);
                 await run('UPDATE conversations SET last_response_id = ? WHERE id = ?', [newResponseId, cid]);
-            } else {
-                console.warn("No newResponseId received from OpenAI service.");
             }
 
-            // 7. Update Title if it's "New Chat" and early in convo
-            // We can check the message count or just use the logic we had.
+            // 7. Update Title if it's "New Chat"
             if (currentTitle === 'New Chat') {
                 const countResult = await get<{ count: number }>('SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?', [cid]);
                 if (countResult && countResult.count <= 4) {
@@ -168,13 +184,49 @@ function setupIPC() {
                 }
             }
 
-            return { content: aiContent, conversationId: cid };
+            // Emit completion event (or stopped event)
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('stream-complete', {
+                    requestId,
+                    conversationId: cid,
+                    content: aiContent,
+                    response_id: newResponseId,
+                    aborted: isAborted
+                });
+            }
+
+            return { requestId, conversationId: cid, aborted: isAborted };
 
         } catch (err: any) {
             console.error('IPC send-message error:', err);
-            // Return error as content so the UI can show it? Or throw?
-            // Throwing allows the UI catch block to handle it.
+
+            // Emit error event
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('stream-error', {
+                    requestId,
+                    error: err.message || 'Error processing message'
+                });
+            }
+
+            // Clean up on error
+            activeStreams.delete(requestId);
             throw new Error(err.message || 'Error processing message');
+        }
+    });
+
+    ipcMain.handle('cancel-message', async (_event: IpcMainInvokeEvent, requestId: string) => {
+        try {
+            const abortController = activeStreams.get(requestId);
+            if (abortController) {
+                console.log('Cancelling stream:', requestId);
+                abortController.abort();
+                activeStreams.delete(requestId);
+                return { success: true };
+            }
+            return { success: false, message: 'Request not found' };
+        } catch (err: any) {
+            console.error('Cancel error:', err);
+            return { success: false, message: err.message };
         }
     });
 }
