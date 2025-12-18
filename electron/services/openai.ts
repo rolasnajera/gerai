@@ -1,6 +1,12 @@
 import { OpenAI } from 'openai';
 import fs from 'fs';
 import path from 'path';
+import { app } from 'electron';
+
+// Detect if we are in development
+const isDev = !app.isPackaged;
+const logFolder = isDev ? process.cwd() : app.getPath('userData');
+const logPath = path.join(logFolder, 'openai_debug.log');
 
 interface OpenAIResponseResult {
     output_text: string;
@@ -84,7 +90,6 @@ export async function getOpenAIResponse(
                 console.log('Preview:', accumulatedText.substring(0, 100));
 
                 // Debug logging to file
-                const logPath = path.resolve(__dirname, '../../openai_debug.log');
                 const debugInfo = {
                     timestamp: new Date().toISOString(),
                     streaming: true,
@@ -103,14 +108,12 @@ export async function getOpenAIResponse(
             // Listen for errors
             stream.on('error', (error: any) => {
                 console.error('OpenAI Streaming Error:', error);
-                const logPath = path.resolve(__dirname, '../../openai_debug.log');
                 fs.appendFileSync(logPath, `STREAMING ERROR: ${error.message}\n${error.stack}\n`);
                 reject(new Error('Failed to fetch streaming response from OpenAI'));
             });
 
         } catch (error: any) {
             console.error('OpenAI API Error:', error);
-            const logPath = path.resolve(__dirname, '../../openai_debug.log');
             fs.appendFileSync(logPath, `ERROR: ${error.message}\n${error.stack}\n`);
             reject(new Error('Failed to fetch response from OpenAI'));
         }
