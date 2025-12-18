@@ -73,6 +73,11 @@ function App() {
                 setCurrentRequestId(null);
                 setIsLoading(false);
 
+                // Ignore if aborted by user
+                if (data.error && data.error.includes('Aborted by user')) {
+                    return;
+                }
+
                 // Add error message
                 const errorMsg: Message = {
                     id: Date.now(),
@@ -156,6 +161,13 @@ function App() {
             return;
         }
 
+        // Generate Request ID on frontend to track streaming immediately
+        const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        setCurrentRequestId(requestId);
+        setIsStreaming(true);
+        setIsLoading(true);
+        setStreamingMessage('');
+
         // Optimistic Update
         const userMsg: Message = {
             id: Date.now(), // Temp ID
@@ -165,13 +177,11 @@ function App() {
             created_at: new Date().toISOString()
         };
         setMessages(prev => [...prev, userMsg]);
-        setIsLoading(true);
-        setStreamingMessage(''); // Clear any previous streaming message
 
         if (window.electron) {
             try {
-                // Start streaming
                 const response = await window.electron.invoke('send-message', {
+                    requestId, // Pass ID to backend
                     conversationId: currentCid,
                     message: text,
                     model: selectedModel,
@@ -179,14 +189,18 @@ function App() {
                     systemPrompt
                 });
 
-                // Store request ID and start streaming state
-                setCurrentRequestId(response.requestId);
-                setIsStreaming(true);
-
                 // Update conversation ID if it was a new chat
                 if (!currentCid && response.conversationId) {
                     setCurrentCid(response.conversationId);
                     loadConversations();
+                }
+
+                if (response.aborted) {
+                    setIsLoading(false);
+                    setIsStreaming(false);
+                    setStreamingMessage('');
+                    setCurrentRequestId(null);
+                    return;
                 }
 
                 // Note: The actual message will be added via stream-complete event listener
@@ -197,6 +211,7 @@ function App() {
                 setStreamingMessage('');
                 setCurrentRequestId(null);
 
+                // Add error message
                 const errorMsg: Message = {
                     id: Date.now(),
                     conversation_id: currentCid || 0,
@@ -218,6 +233,9 @@ function App() {
                 };
                 setMessages(prev => [...prev, mockMsg]);
                 setIsLoading(false);
+                setIsStreaming(false);
+                setStreamingMessage('');
+                setCurrentRequestId(null);
             }, 1000);
         }
     };
@@ -227,24 +245,9 @@ function App() {
 
         try {
             await window.electron.invoke('cancel-message', currentRequestId);
-
-            // Save the partial message if any
-            if (streamingMessage) {
-                const partialMsg: Message = {
-                    id: Date.now(),
-                    conversation_id: currentCid || 0,
-                    role: 'assistant',
-                    content: streamingMessage + "\n\n[Response canceled]",
-                    created_at: new Date().toISOString()
-                };
-                setMessages(prev => [...prev, partialMsg]);
-            }
-
-            // Reset state
-            setIsStreaming(false);
-            setStreamingMessage('');
-            setCurrentRequestId(null);
-            setIsLoading(false);
+            // Note: We don't reset state here anymore. 
+            // The backend will now resolve the 'send-message' call and emit 'stream-complete'
+            // even when aborted, which will handle the UI cleanup and persistence.
         } catch (err: any) {
             console.error('Cancel error:', err);
         }

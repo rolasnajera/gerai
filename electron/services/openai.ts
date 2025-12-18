@@ -5,6 +5,7 @@ import path from 'path';
 interface OpenAIResponseResult {
     output_text: string;
     response_id?: string;
+    aborted?: boolean;
 }
 
 export async function getOpenAIResponse(
@@ -13,7 +14,8 @@ export async function getOpenAIResponse(
     onChunk: (chunk: string) => void,
     model: string = 'gpt-5-mini',
     instructions?: string,
-    previousResponseId?: string
+    previousResponseId?: string,
+    abortSignal?: AbortSignal
 ): Promise<OpenAIResponseResult> {
     return new Promise((resolve, reject) => {
         try {
@@ -45,13 +47,27 @@ export async function getOpenAIResponse(
             // @ts-ignore
             const stream = client.responses.stream(params);
 
+            // Handle cancellation
+            if (abortSignal) {
+                abortSignal.addEventListener('abort', () => {
+                    console.log('Abort signal received, aborting stream...');
+                    stream.controller.abort();
+                    // Instead of rejecting, we resolve with what we have so far
+                    // so it can be saved to the DB if needed.
+                    resolve({
+                        output_text: accumulatedText,
+                        response_id: responseId,
+                        aborted: true
+                    });
+                });
+            }
+
             let accumulatedText = '';
             let responseId: string | undefined;
 
             // Listen for text delta chunks - CORRECT event name
             stream.on('response.output_text.delta', (event: any) => {
                 const delta = event.delta || '';
-                console.log('Delta received:', delta);
                 accumulatedText += delta;
                 // Forward delta to callback for real-time UI updates
                 onChunk(delta);

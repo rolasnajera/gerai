@@ -5,6 +5,9 @@ import { getOpenAIResponse } from './services/openai';
 
 let mainWindow: BrowserWindow | undefined;
 
+// Track active streaming requests
+const activeStreams = new Map<string, AbortController>();
+
 function createWindow() {
     mainWindow = new BrowserWindow({
         width: 1280,
@@ -105,9 +108,10 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, apiKey, systemPrompt }: { conversationId?: number, message: string, model?: string, apiKey: string, systemPrompt?: string }) => {
+    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, apiKey, systemPrompt, requestId }: { conversationId?: number, message: string, model?: string, apiKey: string, systemPrompt?: string, requestId: string }) => {
         let cid = conversationId;
-        const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Use the requestId provided by the frontend
+        // const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
         try {
             // 1. If a new chat is needed
@@ -128,6 +132,11 @@ function setupIPC() {
 
             console.log("Calling OpenAI with streaming for request:", requestId);
 
+
+            // Create AbortController
+            const abortController = new AbortController();
+            activeStreams.set(requestId, abortController);
+
             // 4. Call OpenAI with streaming callback
             const aiResponse = await getOpenAIResponse(
                 apiKey,
@@ -140,23 +149,30 @@ function setupIPC() {
                 },
                 model || 'gpt-5-nano',
                 instructions,
-                lastResponseId
+                lastResponseId,
+                abortController.signal
             );
 
-            console.log("AI Response Object:", JSON.stringify(aiResponse, null, 2));
+            // Clean up
+            activeStreams.delete(requestId);
 
-            const aiContent = aiResponse.output_text;
+            let aiContent = aiResponse.output_text;
             const newResponseId = aiResponse.response_id;
+            const isAborted = aiResponse.aborted;
 
-            // 5. Save AI Msg
-            await run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)', [cid, 'assistant', aiContent]);
+            if (isAborted) {
+                aiContent += (aiContent ? "\n\n" : "") + "[Response canceled]";
+            }
+
+            // 5. Save AI Msg (even if aborted, if there's content or it was aborted)
+            if (aiContent || isAborted) {
+                await run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)', [cid, 'assistant', aiContent || '[Response canceled]']);
+            }
 
             // 6. Update Conversation State
             if (newResponseId) {
                 console.log("Updating conversation", cid, "with newResponseId:", newResponseId);
                 await run('UPDATE conversations SET last_response_id = ? WHERE id = ?', [newResponseId, cid]);
-            } else {
-                console.warn("No newResponseId received from OpenAI service.");
             }
 
             // 7. Update Title if it's "New Chat"
@@ -168,17 +184,18 @@ function setupIPC() {
                 }
             }
 
-            // Emit completion event
+            // Emit completion event (or stopped event)
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('stream-complete', {
                     requestId,
                     conversationId: cid,
                     content: aiContent,
-                    response_id: newResponseId
+                    response_id: newResponseId,
+                    aborted: isAborted
                 });
             }
 
-            return { requestId, conversationId: cid };
+            return { requestId, conversationId: cid, aborted: isAborted };
 
         } catch (err: any) {
             console.error('IPC send-message error:', err);
@@ -191,7 +208,25 @@ function setupIPC() {
                 });
             }
 
+            // Clean up on error
+            activeStreams.delete(requestId);
             throw new Error(err.message || 'Error processing message');
+        }
+    });
+
+    ipcMain.handle('cancel-message', async (_event: IpcMainInvokeEvent, requestId: string) => {
+        try {
+            const abortController = activeStreams.get(requestId);
+            if (abortController) {
+                console.log('Cancelling stream:', requestId);
+                abortController.abort();
+                activeStreams.delete(requestId);
+                return { success: true };
+            }
+            return { success: false, message: 'Request not found' };
+        } catch (err: any) {
+            console.error('Cancel error:', err);
+            return { success: false, message: err.message };
         }
     });
 }
