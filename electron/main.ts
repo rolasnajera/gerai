@@ -78,9 +78,12 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('create-conversation', async () => {
+    ipcMain.handle('create-conversation', async (_event: IpcMainInvokeEvent, { model, systemPrompt }: { model?: string, systemPrompt?: string } = {}) => {
         try {
-            const result = await run('INSERT INTO conversations (title) VALUES (?)', ['New Chat']);
+            const result = await run(
+                'INSERT INTO conversations (title, model, system_prompt) VALUES (?, ?, ?)',
+                ['New Chat', model || 'gpt-5-nano', systemPrompt || 'You are a helpful assistant.']
+            );
             return { id: result.id, title: 'New Chat' };
         } catch (err) {
             console.error(err);
@@ -116,12 +119,32 @@ function setupIPC() {
         try {
             // 1. If a new chat is needed
             if (!cid) {
-                const res = await run('INSERT INTO conversations (title) VALUES (?)', ['New Chat']);
+                const res = await run(
+                    'INSERT INTO conversations (title, model, system_prompt) VALUES (?, ?, ?)',
+                    ['New Chat', model || 'gpt-5-nano', systemPrompt || 'You are a helpful assistant.']
+                );
                 cid = res.id;
+            } else {
+                // Update model and system prompt for existing conversation if provided
+                if (model || systemPrompt) {
+                    const updates: string[] = [];
+                    const params: any[] = [];
+                    if (model) {
+                        updates.push('model = ?');
+                        params.push(model);
+                    }
+                    if (systemPrompt) {
+                        updates.push('system_prompt = ?');
+                        params.push(systemPrompt);
+                    }
+                    params.push(cid);
+                    await run(`UPDATE conversations SET ${updates.join(', ')} WHERE id = ?`, params);
+                }
             }
 
             // 2. Save User Msg
-            await run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)', [cid, 'user', message]);
+            const messageModel = model || 'gpt-5-nano';
+            await run('INSERT INTO messages (conversation_id, role, content, model) VALUES (?, ?, ?, ?)', [cid, 'user', message, messageModel]);
 
             // 3. Prepare OpenAI Call
             const conv = await get<{ last_response_id: string, title: string }>('SELECT last_response_id, title FROM conversations WHERE id = ?', [cid]);
@@ -147,7 +170,7 @@ function setupIPC() {
                         mainWindow.webContents.send('stream-chunk', { requestId, chunk });
                     }
                 },
-                model || 'gpt-5-nano',
+                messageModel,
                 instructions,
                 lastResponseId,
                 abortController.signal
@@ -166,7 +189,7 @@ function setupIPC() {
 
             // 5. Save AI Msg (even if aborted, if there's content or it was aborted)
             if (aiContent || isAborted) {
-                await run('INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)', [cid, 'assistant', aiContent || '[Response canceled]']);
+                await run('INSERT INTO messages (conversation_id, role, content, model) VALUES (?, ?, ?, ?)', [cid, 'assistant', aiContent || '[Response canceled]', messageModel]);
             }
 
             // 6. Update Conversation State

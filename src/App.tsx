@@ -126,12 +126,19 @@ function App() {
     const handleSelectConversation = (cid: number) => {
         setCurrentCid(cid);
         loadMessages(cid);
+
+        // Update UI settings from the selected conversation
+        const selected = conversations.find(c => c.id === cid);
+        if (selected) {
+            if (selected.model) setModel(selected.model);
+            if (selected.system_prompt) setSystemPrompt(selected.system_prompt);
+        }
     };
 
     const handleCreateNewChat = async () => {
         if (window.electron) {
             try {
-                const newChat = await window.electron.invoke('create-conversation');
+                const newChat = await window.electron.invoke('create-conversation', { model, systemPrompt });
                 await loadConversations();
                 setCurrentCid(newChat.id);
                 setMessages([]); // New chat empty

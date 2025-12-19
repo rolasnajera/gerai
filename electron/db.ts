@@ -46,6 +46,7 @@ export function initDb(): void {
             conversation_id INTEGER,
             role TEXT NOT NULL,
             content TEXT NOT NULL,
+            model TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )`);
@@ -63,6 +64,24 @@ export function initDb(): void {
                         console.error("Error adding last_response_id column:", err);
                     } else {
                         console.log("Successfully added last_response_id column to conversations.");
+                    }
+                });
+            }
+        });
+
+        // Migration to add model to messages if missing
+        db!.all("PRAGMA table_info(messages)", (err: Error | null, rows: any[]) => {
+            if (err) {
+                console.error("Error checking message table info:", err);
+                return;
+            }
+            const hasModel = rows.some(row => row.name === 'model');
+            if (!hasModel) {
+                db!.run("ALTER TABLE messages ADD COLUMN model TEXT", (err: Error | null) => {
+                    if (err) {
+                        console.error("Error adding model column to messages:", err);
+                    } else {
+                        console.log("Successfully added model column to messages.");
                     }
                 });
             }
