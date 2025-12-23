@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsModal from './components/SettingsModal';
+import RenameModal from './components/RenameModal';
 import { Message, Conversation } from './types';
 
 import { DEFAULT_MODEL } from './constants/models';
@@ -22,6 +23,11 @@ function App() {
     const [apiKey, setApiKey] = useState(localStorage.getItem('openai_key') || '');
     const [systemPrompt, setSystemPrompt] = useState(localStorage.getItem('system_prompt') || 'You are a helpful assistant.');
     const [model, setModel] = useState(DEFAULT_MODEL);
+
+    // Rename State
+    const [renameModalOpen, setRenameModalOpen] = useState(false);
+    const [renameCid, setRenameCid] = useState<number | null>(null);
+    const [renameTitle, setRenameTitle] = useState('');
 
     // Load Conversations on Mount
     useEffect(() => {
@@ -272,14 +278,25 @@ function App() {
         }
     };
 
-    const handleRenameChat = async (cid: number, oldTitle: string) => {
-        const newTitle = prompt("Rename:", oldTitle);
-        if (newTitle && newTitle !== oldTitle) {
+    const handleRenameChat = (cid: number, oldTitle: string) => {
+        setRenameCid(cid);
+        setRenameTitle(oldTitle);
+        setRenameModalOpen(true);
+    };
+
+    const handleFinishRename = async (newTitle: string) => {
+        if (renameCid && newTitle) {
             if (window.electron) {
-                await window.electron.invoke('rename-conversation', { id: cid, title: newTitle });
-                loadConversations();
+                try {
+                    await window.electron.invoke('rename-conversation', { id: renameCid, title: newTitle });
+                    await loadConversations();
+                } catch (err) {
+                    console.error("Failed to rename conversation", err);
+                }
             }
         }
+        setRenameModalOpen(false);
+        setRenameCid(null);
     };
 
     return (
@@ -313,6 +330,13 @@ function App() {
                 setApiKey={setApiKey}
                 systemPrompt={systemPrompt}
                 setSystemPrompt={setSystemPrompt}
+            />
+
+            <RenameModal
+                isOpen={renameModalOpen}
+                onClose={() => setRenameModalOpen(false)}
+                onSave={handleFinishRename}
+                initialTitle={renameTitle}
             />
         </div>
     );
