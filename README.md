@@ -6,6 +6,7 @@
 
 ## 🚀 Features
 
+*   **Mock Model for Development**: Use the `Mock Model` to test UI and streaming without incurring OpenAI API costs. It's the default in development.
 *   **OpenAI Models**: Choose between `gpt-5-nano`, `gpt-5-mini`, and `gpt-5` (via OpenAI API).
 *   **Privacy‑First**: Conversation history is stored locally (SQLite in your OS user data folder).
 *   **Bring Your Own Key (BYOK)**: Enter your OpenAI API key in‑app (stored locally via secure storage/LocalStorage).
@@ -40,6 +41,7 @@ To build and run GERAI locally, you'll need [Node.js](https://nodejs.org/) (v18+
     npm run dev
     ```
     This starts the Vite dev server and the Electron app (auto‑reloading the main process via `tsup`).
+    In development mode, the **Mock Model** is selected by default, allowing you to test the chat interface and streaming without an API key or costs.
 
 4.  **Set your OpenAI API key**
     - Open the app, click the gear icon (Settings), paste your API key, and optionally set a system prompt.
@@ -65,6 +67,7 @@ This generates the renderer bundle in `dist/` and the Electron main/preload bund
 
 - Database file location: stored under your OS user data directory (e.g., `~/Library/Application Support/GERAI/gerai.db` on macOS).
 - Models available by default: `gpt-5-nano`, `gpt-5-mini`, `gpt-5`.
+- **Mock Model**: Available in the model selector. It generates simulated streaming responses and does not require an internet connection or API key.
 - No `.env` is required; configuration is handled in‑app.
 
 ## 🤝 Contributing
