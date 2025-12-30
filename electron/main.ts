@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import path from 'path';
 import { run, get, all, connect } from './db';
 import { getOpenAIResponse } from './services/openai';
+import { getMockResponse } from './services/mock';
 
 let mainWindow: BrowserWindow | undefined;
 
@@ -80,9 +81,11 @@ function setupIPC() {
 
     ipcMain.handle('create-conversation', async (_event: IpcMainInvokeEvent, { model, systemPrompt }: { model?: string, systemPrompt?: string } = {}) => {
         try {
+            const isDev = !app.isPackaged;
+            const defaultModel = isDev ? 'mock' : 'gpt-5-nano';
             const result = await run(
                 'INSERT INTO conversations (title, model, system_prompt) VALUES (?, ?, ?)',
-                ['New Chat', model || 'gpt-5-nano', systemPrompt || 'You are a helpful assistant.']
+                ['New Chat', model || defaultModel, systemPrompt || 'You are a helpful assistant.']
             );
             return { id: result.id, title: 'New Chat' };
         } catch (err) {
@@ -119,9 +122,11 @@ function setupIPC() {
         try {
             // 1. If a new chat is needed
             if (!cid) {
+                const isDev = !app.isPackaged;
+                const defaultModel = isDev ? 'mock' : 'gpt-5-nano';
                 const res = await run(
                     'INSERT INTO conversations (title, model, system_prompt) VALUES (?, ?, ?)',
-                    ['New Chat', model || 'gpt-5-nano', systemPrompt || 'You are a helpful assistant.']
+                    ['New Chat', model || defaultModel, systemPrompt || 'You are a helpful assistant.']
                 );
                 cid = res.id;
             } else {
@@ -143,7 +148,9 @@ function setupIPC() {
             }
 
             // 2. Save User Msg
-            const messageModel = model || 'gpt-5-nano';
+            const isDev = !app.isPackaged;
+            const defaultModel = isDev ? 'mock' : 'gpt-5-nano';
+            const messageModel = model || defaultModel;
             await run('INSERT INTO messages (conversation_id, role, content, model) VALUES (?, ?, ?, ?)', [cid, 'user', message, messageModel]);
 
             // 3. Prepare OpenAI Call
@@ -160,21 +167,35 @@ function setupIPC() {
             const abortController = new AbortController();
             activeStreams.set(requestId, abortController);
 
-            // 4. Call OpenAI with streaming callback
-            const aiResponse = await getOpenAIResponse(
-                apiKey,
-                message,
-                (chunk: string) => {
-                    // Emit each delta to the renderer in real-time
-                    if (mainWindow && !mainWindow.isDestroyed()) {
-                        mainWindow.webContents.send('stream-chunk', { requestId, chunk });
-                    }
-                },
-                messageModel,
-                instructions,
-                lastResponseId,
-                abortController.signal
-            );
+            // 4. Call AI service (Mock or OpenAI)
+            let aiResponse;
+            if (messageModel === 'mock') {
+                console.log("Using Mock Model for request:", requestId);
+                aiResponse = await getMockResponse(
+                    message,
+                    (chunk: string) => {
+                        if (mainWindow && !mainWindow.isDestroyed()) {
+                            mainWindow.webContents.send('stream-chunk', { requestId, chunk });
+                        }
+                    },
+                    abortController.signal
+                );
+            } else {
+                aiResponse = await getOpenAIResponse(
+                    apiKey,
+                    message,
+                    (chunk: string) => {
+                        // Emit each delta to the renderer in real-time
+                        if (mainWindow && !mainWindow.isDestroyed()) {
+                            mainWindow.webContents.send('stream-chunk', { requestId, chunk });
+                        }
+                    },
+                    messageModel,
+                    instructions,
+                    lastResponseId,
+                    abortController.signal
+                );
+            }
 
             // Clean up
             activeStreams.delete(requestId);

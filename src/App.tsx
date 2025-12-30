@@ -168,7 +168,7 @@ function App() {
     };
 
     const handleSendMessage = async (text: string, selectedModel: string) => {
-        if (!apiKey) {
+        if (!apiKey && selectedModel !== 'mock') {
             setSettingsOpen(true);
             alert("Please set your API Key first.");
             return;
