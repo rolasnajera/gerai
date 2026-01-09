@@ -27,6 +27,7 @@ export async function getOpenAIResponse(
         try {
             console.log('--- OpenAI Streaming Request ---');
             console.log('Model:', model);
+            console.log('Instructions:', instructions);
             console.log('Input:', input);
             if (previousResponseId) console.log('Previous Response ID:', previousResponseId);
 

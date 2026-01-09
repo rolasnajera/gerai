@@ -60,6 +60,86 @@ app.on('window-all-closed', () => {
 });
 
 function setupIPC() {
+    ipcMain.handle('get-categories', async () => {
+        try {
+            return await all('SELECT * FROM categories ORDER BY sort_order ASC');
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    });
+
+    ipcMain.handle('get-subcategories', async () => {
+        try {
+            return await all('SELECT * FROM subcategories ORDER BY created_at ASC');
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    });
+
+    ipcMain.handle('create-subcategory', async (_event: IpcMainInvokeEvent, { categoryId, name, description, context }: { categoryId: number, name: string, description?: string, context?: string[] }) => {
+        try {
+            const result = await run(
+                'INSERT INTO subcategories (category_id, name, description) VALUES (?, ?, ?)',
+                [categoryId, name, description || '']
+            );
+            const subcategoryId = result.id;
+
+            if (context && context.length > 0) {
+                for (const content of context) {
+                    if (content.trim()) {
+                        await run('INSERT INTO context (subcategory_id, content) VALUES (?, ?)', [subcategoryId, content]);
+                    }
+                }
+            }
+
+            return { id: subcategoryId };
+        } catch (err) {
+            console.error(err);
+            throw err;
+        }
+    });
+
+    ipcMain.handle('update-subcategory', async (_event: IpcMainInvokeEvent, { id, name, description, context }: { id: number, name: string, description?: string, context?: string[] }) => {
+        try {
+            await run('UPDATE subcategories SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [name, description || '', id]);
+
+            if (context) {
+                // Simplified sync: delete old context and insert new
+                await run('DELETE FROM context WHERE subcategory_id = ?', [id]);
+                for (const content of context) {
+                    if (content.trim()) {
+                        await run('INSERT INTO context (subcategory_id, content) VALUES (?, ?)', [id, content]);
+                    }
+                }
+            }
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
+    ipcMain.handle('delete-subcategory', async (_event: IpcMainInvokeEvent, id: number) => {
+        try {
+            await run('DELETE FROM subcategories WHERE id = ?', [id]);
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
+    ipcMain.handle('get-subcategory-context', async (_event: IpcMainInvokeEvent, subcategoryId: number) => {
+        try {
+            return await all('SELECT * FROM context WHERE subcategory_id = ?', [subcategoryId]);
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    });
+
     ipcMain.handle('get-conversations', async () => {
         try {
             return await all('SELECT * FROM conversations ORDER BY created_at DESC');
@@ -79,15 +159,15 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('create-conversation', async (_event: IpcMainInvokeEvent, { model, systemPrompt }: { model?: string, systemPrompt?: string } = {}) => {
+    ipcMain.handle('create-conversation', async (_event: IpcMainInvokeEvent, { model, systemPrompt, subcategoryId }: { model?: string, systemPrompt?: string, subcategoryId?: number } = {}) => {
         try {
             const isDev = !app.isPackaged;
             const defaultModel = isDev ? 'mock' : 'gpt-5-nano';
             const result = await run(
-                'INSERT INTO conversations (title, model, system_prompt) VALUES (?, ?, ?)',
-                ['New Chat', model || defaultModel, systemPrompt || 'You are a helpful assistant.']
+                'INSERT INTO conversations (title, model, system_prompt, subcategory_id) VALUES (?, ?, ?, ?)',
+                ['New Chat', model || defaultModel, systemPrompt || 'You are a helpful assistant.', subcategoryId || null]
             );
-            return { id: result.id, title: 'New Chat' };
+            return { id: result.id, title: 'New Chat', subcategory_id: subcategoryId };
         } catch (err) {
             console.error(err);
             throw err;
@@ -154,11 +234,25 @@ function setupIPC() {
             await run('INSERT INTO messages (conversation_id, role, content, model) VALUES (?, ?, ?, ?)', [cid, 'user', message, messageModel]);
 
             // 3. Prepare OpenAI Call
-            const conv = await get<{ last_response_id: string, title: string }>('SELECT last_response_id, title FROM conversations WHERE id = ?', [cid]);
+            const conv = await get<{ last_response_id: string, title: string, subcategory_id: number, system_prompt: string }>('SELECT last_response_id, title, subcategory_id, system_prompt FROM conversations WHERE id = ?', [cid]);
             const lastResponseId = conv ? conv.last_response_id : undefined;
             const currentTitle = conv ? conv.title : 'New Chat';
+            const subcategoryId = conv ? conv.subcategory_id : undefined;
 
-            const instructions = !lastResponseId ? (systemPrompt || "You are a helpful assistant.") : undefined;
+            let finalSystemPrompt = systemPrompt || (conv ? conv.system_prompt : "You are a helpful assistant.");
+            let finalMessage = message;
+
+            // 3.1 Fetch Context for injection into Input
+            if (subcategoryId) {
+                const results = await all<{ content: string }>('SELECT content FROM context WHERE subcategory_id = ?', [subcategoryId]);
+                if (results.length > 0) {
+                    const localizedContext = results.map(r => r.content).join('\n');
+                    // Prepend context to the message (Input parameter)
+                    finalMessage = `[CONTEXT]\n${localizedContext}\n\n[USER MESSAGE]\n${message}`;
+                }
+            }
+
+            const instructions = !lastResponseId ? finalSystemPrompt : undefined;
 
             console.log("Calling OpenAI with streaming for request:", requestId);
 
@@ -172,7 +266,7 @@ function setupIPC() {
             if (messageModel === 'mock') {
                 console.log("Using Mock Model for request:", requestId);
                 aiResponse = await getMockResponse(
-                    message,
+                    finalMessage,
                     (chunk: string) => {
                         if (mainWindow && !mainWindow.isDestroyed()) {
                             mainWindow.webContents.send('stream-chunk', { requestId, chunk });
@@ -183,7 +277,7 @@ function setupIPC() {
             } else {
                 aiResponse = await getOpenAIResponse(
                     apiKey,
-                    message,
+                    finalMessage,
                     (chunk: string) => {
                         // Emit each delta to the renderer in real-time
                         if (mainWindow && !mainWindow.isDestroyed()) {

@@ -31,13 +31,48 @@ export function initDb(): void {
         // Enable Foreign Keys
         db!.run("PRAGMA foreign_keys = ON");
 
+        // Create Categories Table
+        db!.run(`CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            icon TEXT,
+            description TEXT,
+            sort_order INTEGER DEFAULT 0
+        )`);
+
+        // Create Subcategories Table
+        db!.run(`CREATE TABLE IF NOT EXISTS subcategories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category_id INTEGER,
+            name TEXT NOT NULL,
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
+        )`);
+
+        // Create Context Table (localized memory)
+        db!.run(`CREATE TABLE IF NOT EXISTS context (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category_id INTEGER,
+            subcategory_id INTEGER,
+            conversation_id INTEGER,
+            content TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
+            FOREIGN KEY (subcategory_id) REFERENCES subcategories(id) ON DELETE CASCADE,
+            FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+        )`);
+
         // Create Conversations Table
         db!.run(`CREATE TABLE IF NOT EXISTS conversations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subcategory_id INTEGER,
             title TEXT DEFAULT 'New Chat',
             system_prompt TEXT DEFAULT 'You are a helpful assistant.',
             model TEXT DEFAULT 'gpt-5-nano',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (subcategory_id) REFERENCES subcategories(id) ON DELETE SET NULL
         )`);
 
         // Create Messages Table
@@ -50,6 +85,17 @@ export function initDb(): void {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
         )`);
+
+        // Migration to add subcategory_id to conversations if missing
+        db!.all("PRAGMA table_info(conversations)", (err: Error | null, rows: any[]) => {
+            if (err) return;
+            const hasSubCat = rows.some(row => row.name === 'subcategory_id');
+            if (!hasSubCat) {
+                db!.run("ALTER TABLE conversations ADD COLUMN subcategory_id INTEGER", (err) => {
+                    if (!err) console.log("Added subcategory_id to conversations");
+                });
+            }
+        });
 
         // Migration to add last_response_id if missing
         db!.all("PRAGMA table_info(conversations)", (err: Error | null, rows: any[]) => {
@@ -84,6 +130,25 @@ export function initDb(): void {
                         console.log("Successfully added model column to messages.");
                     }
                 });
+            }
+        });
+
+        // Seed default categories
+        const defaultCategories = [
+            { name: 'Projects', icon: 'briefcase', sort_order: 1 },
+            { name: 'Areas', icon: 'grid', sort_order: 2 },
+            { name: 'Resources', icon: 'book', sort_order: 3 },
+            { name: 'Archives', icon: 'archive', sort_order: 4 }
+        ];
+
+        db!.get("SELECT COUNT(*) as count FROM categories", (err, row: { count: number }) => {
+            if (!err && row.count === 0) {
+                const stmt = db!.prepare("INSERT INTO categories (name, icon, sort_order) VALUES (?, ?, ?)");
+                defaultCategories.forEach(cat => {
+                    stmt.run(cat.name, cat.icon, cat.sort_order);
+                });
+                stmt.finalize();
+                console.log("Seeded default categories");
             }
         });
     });

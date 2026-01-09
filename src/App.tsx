@@ -3,11 +3,15 @@ import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsModal from './components/SettingsModal';
 import RenameModal from './components/RenameModal';
-import { Message, Conversation } from './types';
+import SubcategoryModal from './components/SubcategoryModal';
+import DeleteSubcategoryModal from './components/DeleteSubcategoryModal';
+import { Message, Conversation, Category, Subcategory } from './types';
 
 import { DEFAULT_MODEL } from './constants/models';
 
 function App() {
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [currentCid, setCurrentCid] = useState<number | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);
@@ -29,10 +33,28 @@ function App() {
     const [renameCid, setRenameCid] = useState<number | null>(null);
     const [renameTitle, setRenameTitle] = useState('');
 
-    // Load Conversations on Mount
+    // Subcategory Modal State
+    const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+    const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null);
+    const [subcategoryInitialData, setSubcategoryInitialData] = useState<{ name: string; description: string; context: string[] } | undefined>(undefined);
+
+    // Delete Subcategory Modal State
+    const [deleteSubcategoryModalOpen, setDeleteSubcategoryModalOpen] = useState(false);
+    const [deletingSubcategory, setDeletingSubcategory] = useState<Subcategory | null>(null);
+
+    // Load Data on Mount
     useEffect(() => {
-        loadConversations();
+        loadData();
     }, []);
+
+    const loadData = async () => {
+        await Promise.all([
+            loadCategories(),
+            loadSubcategories(),
+            loadConversations()
+        ]);
+    };
 
     // Save Settings when changed
     useEffect(() => {
@@ -68,7 +90,7 @@ function App() {
                 setMessages(prev => [...prev, aiMsg]);
 
                 // Reload conversations to update title if needed
-                if (messages.length === 0) loadConversations();
+                loadConversations();
             }
         };
 
@@ -105,7 +127,29 @@ function App() {
             window.electron.removeListener('stream-complete', completeListener);
             window.electron.removeListener('stream-error', errorListener);
         };
-    }, [currentRequestId, currentCid, messages.length]);
+    }, [currentRequestId, currentCid, messages.length, conversations.length]);
+
+    const loadCategories = async () => {
+        if (window.electron) {
+            try {
+                const cats = await window.electron.invoke('get-categories');
+                setCategories(cats);
+            } catch (err) {
+                console.error("Failed to load categories", err);
+            }
+        }
+    };
+
+    const loadSubcategories = async () => {
+        if (window.electron) {
+            try {
+                const subs = await window.electron.invoke('get-subcategories');
+                setSubcategories(subs);
+            } catch (err) {
+                console.error("Failed to load subcategories", err);
+            }
+        }
+    };
 
     const loadConversations = async () => {
         if (window.electron) {
@@ -141,29 +185,16 @@ function App() {
         }
     };
 
-    const handleCreateNewChat = async () => {
+    const handleCreateNewChat = async (subcategoryId?: number) => {
         if (window.electron) {
             try {
-                const newChat = await window.electron.invoke('create-conversation', { model, systemPrompt });
+                const newChat = await window.electron.invoke('create-conversation', { model, systemPrompt, subcategoryId });
                 await loadConversations();
                 setCurrentCid(newChat.id);
                 setMessages([]); // New chat empty
             } catch (err) {
                 console.error("Failed to create chat", err);
             }
-        } else {
-            // Fallback for UIdev without Electron
-            const fakeId = Date.now();
-            const newChat: Conversation = {
-                id: fakeId,
-                title: 'New Chat',
-                model: DEFAULT_MODEL,
-                system_prompt: 'You are a helpful assistant.',
-                created_at: new Date().toISOString()
-            };
-            setConversations([newChat, ...conversations]);
-            setCurrentCid(fakeId);
-            setMessages([]);
         }
     };
 
@@ -215,8 +246,6 @@ function App() {
                     setCurrentRequestId(null);
                     return;
                 }
-
-                // Note: The actual message will be added via stream-complete event listener
             } catch (err: any) {
                 console.error(err);
                 setIsLoading(false);
@@ -224,7 +253,6 @@ function App() {
                 setStreamingMessage('');
                 setCurrentRequestId(null);
 
-                // Add error message
                 const errorMsg: Message = {
                     id: Date.now(),
                     conversation_id: currentCid || 0,
@@ -234,33 +262,13 @@ function App() {
                 };
                 setMessages(prev => [...prev, errorMsg]);
             }
-        } else {
-            // Mock for development without Electron
-            setTimeout(() => {
-                const mockMsg: Message = {
-                    id: Date.now(),
-                    conversation_id: currentCid || 0,
-                    role: 'assistant',
-                    content: "This is a mock response. Electron not detected.",
-                    created_at: new Date().toISOString()
-                };
-                setMessages(prev => [...prev, mockMsg]);
-                setIsLoading(false);
-                setIsStreaming(false);
-                setStreamingMessage('');
-                setCurrentRequestId(null);
-            }, 1000);
         }
     };
 
     const handleCancelMessage = async () => {
         if (!currentRequestId || !window.electron) return;
-
         try {
             await window.electron.invoke('cancel-message', currentRequestId);
-            // Note: We don't reset state here anymore. 
-            // The backend will now resolve the 'send-message' call and emit 'stream-complete'
-            // even when aborted, which will handle the UI cleanup and persistence.
         } catch (err: any) {
             console.error('Cancel error:', err);
         }
@@ -299,9 +307,74 @@ function App() {
         setRenameCid(null);
     };
 
+    // Subcategory Handlers
+    const handleAddSubcategory = (category: Category) => {
+        setSelectedCategory(category);
+        setEditingSubcategory(null);
+        setSubcategoryInitialData(undefined);
+        setSubcategoryModalOpen(true);
+    };
+
+    const handleEditSubcategory = async (subcategory: Subcategory) => {
+        setEditingSubcategory(subcategory);
+        setSelectedCategory(categories.find(c => c.id === subcategory.category_id) || null);
+
+        if (window.electron) {
+            const context = await window.electron.invoke('get-subcategory-context', subcategory.id);
+            setSubcategoryInitialData({
+                name: subcategory.name,
+                description: subcategory.description || '',
+                context: context.map((c: any) => c.content)
+            });
+        }
+        setSubcategoryModalOpen(true);
+    };
+
+    const handleDeleteSubcategoryRequest = (subcategory: Subcategory) => {
+        setDeletingSubcategory(subcategory);
+        setDeleteSubcategoryModalOpen(true);
+    };
+
+    const handleConfirmDeleteSubcategory = async () => {
+        if (deletingSubcategory && window.electron) {
+            await window.electron.invoke('delete-subcategory', deletingSubcategory.id);
+            await loadSubcategories();
+            await loadConversations();
+            // If the current chat was in this subcategory, it's gone
+            const stillExists = conversations.some(c => c.id === currentCid);
+            if (!stillExists) {
+                setCurrentCid(null);
+                setMessages([]);
+            }
+        }
+    };
+
+    const handleSaveSubcategory = async (name: string, description: string, context: string[]) => {
+        if (!window.electron) return;
+
+        if (editingSubcategory) {
+            await window.electron.invoke('update-subcategory', {
+                id: editingSubcategory.id,
+                name,
+                description,
+                context
+            });
+        } else if (selectedCategory) {
+            await window.electron.invoke('create-subcategory', {
+                categoryId: selectedCategory.id,
+                name,
+                description,
+                context
+            });
+        }
+        await loadSubcategories();
+    };
+
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans">
             <Sidebar
+                categories={categories}
+                subcategories={subcategories}
                 conversations={conversations}
                 currentCid={currentCid}
                 onSelectConversation={handleSelectConversation}
@@ -309,6 +382,9 @@ function App() {
                 onDeleteChat={handleDeleteChat}
                 onRenameChat={handleRenameChat}
                 onOpenSettings={() => setSettingsOpen(true)}
+                onAddSubcategory={handleAddSubcategory}
+                onEditSubcategory={handleEditSubcategory}
+                onDeleteSubcategory={handleDeleteSubcategoryRequest}
             />
 
             <ChatInterface
@@ -338,8 +414,24 @@ function App() {
                 onSave={handleFinishRename}
                 initialTitle={renameTitle}
             />
+
+            <SubcategoryModal
+                isOpen={subcategoryModalOpen}
+                onClose={() => setSubcategoryModalOpen(false)}
+                onSave={handleSaveSubcategory}
+                categoryName={selectedCategory?.name || ''}
+                initialData={subcategoryInitialData}
+            />
+
+            <DeleteSubcategoryModal
+                isOpen={deleteSubcategoryModalOpen}
+                onClose={() => setDeleteSubcategoryModalOpen(false)}
+                onConfirm={handleConfirmDeleteSubcategory}
+                subcategoryName={deletingSubcategory?.name || ''}
+            />
         </div>
     );
 }
 
 export default App;
+
