@@ -38,6 +38,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         scrollToBottom();
     }, [messages, isLoading, streamingMessage]);
 
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            const newHeight = Math.min(textareaRef.current.scrollHeight, 300);
+            textareaRef.current.style.height = `${newHeight}px`;
+        }
+    }, [input]);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading || isStreaming) return;
@@ -157,7 +165,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="w-full max-h-48 p-4 pr-14 bg-transparent resize-none focus:outline-none text-base text-gray-700 dark:text-gray-200 placeholder-gray-400"
+                            className="w-full min-h-[56px] p-4 pr-14 bg-transparent resize-y focus:outline-none text-base text-gray-700 dark:text-gray-200 placeholder-gray-400"
                             placeholder="Type your message... (Shift+Enter for new line)"
                             rows={1}
                             required
