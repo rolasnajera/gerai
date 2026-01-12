@@ -107,11 +107,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return (
         <main className="flex-1 flex flex-col h-full relative bg-white dark:bg-gray-900">
             {/* Header */}
-            <header className={`flex items-center justify-between px-6 bg-white dark:bg-gray-900 z-10 w-full border-b border-gray-100 dark:border-gray-800 ${isMac ? 'pt-10 h-24' : 'h-16'}`}>
+            <header className={`flex items-center justify-between px-6 bg-white dark:bg-gray-900 z-10 w-full border-b border-gray-100 dark:border-gray-800 drag ${isMac ? 'pt-10 h-24' : 'h-16'}`}>
                 <h2 className="font-bold text-lg text-gray-800 dark:text-gray-100">AI Chat Interface</h2>
 
                 {/* Model Selector */}
-                <div className="relative">
+                <div className="relative no-drag">
                     <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Model:</span>
                         <select
