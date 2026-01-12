@@ -28,6 +28,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
     const [input, setInput] = useState('');
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+
+    const isMac = window.electron?.platform === 'darwin';
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -105,7 +107,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     return (
         <main className="flex-1 flex flex-col h-full relative bg-white dark:bg-gray-900">
             {/* Header */}
-            <header className="h-16 flex items-center justify-between px-6 bg-white dark:bg-gray-900 z-10 w-full border-b border-gray-100 dark:border-gray-800">
+            <header className={`flex items-center justify-between px-6 bg-white dark:bg-gray-900 z-10 w-full border-b border-gray-100 dark:border-gray-800 ${isMac ? 'pt-10 h-24' : 'h-16'}`}>
                 <h2 className="font-bold text-lg text-gray-800 dark:text-gray-100">AI Chat Interface</h2>
 
                 {/* Model Selector */}

@@ -33,6 +33,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({ 1: true });
     const [expandedSubcategories, setExpandedSubcategories] = useState<Record<number, boolean>>({});
 
+    const isMac = window.electron?.platform === 'darwin';
+
     const toggleCategory = (id: number) => {
         setExpandedCategories(prev => ({ ...prev, [id]: !prev[id] }));
     };
@@ -59,7 +61,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     return (
         <aside className="w-[280px] bg-gray-50 dark:bg-gray-950 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full flex-shrink-0 relative overflow-hidden">
             {/* Header / New Chat */}
-            <div className="p-4 border-b border-gray-100 dark:border-gray-900">
+            <div className={`p-4 border-b border-gray-100 dark:border-gray-900 ${isMac ? 'pt-10' : ''}`}>
                 <button
                     onClick={() => onCreateNewChat()}
                     className="w-full flex items-center justify-center gap-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 py-2.5 rounded-xl font-semibold hover:opacity-90 transition-all shadow-sm active:scale-[0.98]"
@@ -94,10 +96,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                             {/* New Subcategory Button (Hover) */}
                             <button
-                                onClick={(e) => { 
-                                    e.stopPropagation(); 
+                                onClick={(e) => {
+                                    e.stopPropagation();
                                     setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
-                                    onAddSubcategory(cat); 
+                                    onAddSubcategory(cat);
                                 }}
                                 className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-all"
                             >
@@ -132,10 +134,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                 {/* Subcategory Actions */}
                                                 <div className="flex items-center gap-0.5 opacity-0 group-hover/sub:opacity-100 transition-opacity">
                                                     <button
-                                                        onClick={(e) => { 
-                                                            e.stopPropagation(); 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
                                                             setExpandedSubcategories(prev => ({ ...prev, [sub.id]: true }));
-                                                            onCreateNewChat(sub.id); 
+                                                            onCreateNewChat(sub.id);
                                                         }}
                                                         className="p-1 hover:text-blue-500"
                                                         title="New Chat"
