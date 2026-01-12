@@ -92,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <div className="flex-shrink-0 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300">
                                 {getIcon(cat.icon)}
                             </div>
-                            <span className="flex-1 font-bold text-sm tracking-tight">{cat.name}</span>
+                            <span className="flex-1 font-bold text-sm tracking-tight truncate" title={cat.name}>{cat.name}</span>
 
                             {/* New Subcategory Button (Hover) */}
                             <button
@@ -126,7 +126,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                     <polyline points="9 18 15 12 9 6"></polyline>
                                                 </svg>
                                                 <svg className="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                                                <span className="flex-1 text-sm font-medium truncate">{sub.name}</span>
+                                                <span className="flex-1 text-sm font-medium truncate" title={sub.name}>{sub.name}</span>
                                                 <span className="text-[10px] text-gray-400 font-mono">
                                                     ({conversations.filter(c => c.subcategory_id === sub.id).length})
                                                 </span>
@@ -174,7 +174,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                             >
                                                                 <div className="flex items-center gap-2 truncate">
                                                                     <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                                                                    <span className="truncate">{c.title}</span>
+                                                                    <span className="truncate" title={c.title}>{c.title}</span>
                                                                 </div>
 
                                                                 <div className={`flex items-center gap-1 transition-opacity ${currentCid === c.id ? '' : 'opacity-0 group-hover/chat:opacity-100'}`}>
@@ -214,7 +214,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                             >
                                 <div className="flex items-center gap-2 truncate">
                                     <svg className="w-3.5 h-3.5 flex-shrink-0 opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                                    <span className="truncate">{c.title}</span>
+                                    <span className="truncate" title={c.title}>{c.title}</span>
                                 </div>
                                 <div className={`flex items-center gap-1 transition-opacity ${currentCid === c.id ? '' : 'opacity-0 group-hover/chat:opacity-100'}`}>
                                     <button
