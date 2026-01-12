@@ -78,11 +78,11 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('create-subcategory', async (_event: IpcMainInvokeEvent, { categoryId, name, description, context }: { categoryId: number, name: string, description?: string, context?: string[] }) => {
+    ipcMain.handle('create-subcategory', async (_event: IpcMainInvokeEvent, { categoryId, name, description, context, defaultModel }: { categoryId: number, name: string, description?: string, context?: string[], defaultModel?: string }) => {
         try {
             const result = await run(
-                'INSERT INTO subcategories (category_id, name, description) VALUES (?, ?, ?)',
-                [categoryId, name, description || '']
+                'INSERT INTO subcategories (category_id, name, description, default_model) VALUES (?, ?, ?, ?)',
+                [categoryId, name, description || '', defaultModel || null]
             );
             const subcategoryId = result.id;
 
@@ -101,9 +101,9 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('update-subcategory', async (_event: IpcMainInvokeEvent, { id, name, description, context }: { id: number, name: string, description?: string, context?: string[] }) => {
+    ipcMain.handle('update-subcategory', async (_event: IpcMainInvokeEvent, { id, name, description, context, defaultModel }: { id: number, name: string, description?: string, context?: string[], defaultModel?: string }) => {
         try {
-            await run('UPDATE subcategories SET name = ?, description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [name, description || '', id]);
+            await run('UPDATE subcategories SET name = ?, description = ?, default_model = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [name, description || '', defaultModel || null, id]);
 
             if (context) {
                 // Simplified sync: delete old context and insert new
@@ -162,12 +162,25 @@ function setupIPC() {
     ipcMain.handle('create-conversation', async (_event: IpcMainInvokeEvent, { model, systemPrompt, subcategoryId }: { model?: string, systemPrompt?: string, subcategoryId?: number } = {}) => {
         try {
             const isDev = !app.isPackaged;
-            const defaultModel = isDev ? 'mock' : 'gpt-5-nano';
+            let finalModel = model;
+
+            // If a subcategory is provided, try to find its default model
+            if (subcategoryId && !finalModel) {
+                const sub = await get<{ default_model: string }>('SELECT default_model FROM subcategories WHERE id = ?', [subcategoryId]);
+                if (sub && sub.default_model) {
+                    finalModel = sub.default_model;
+                }
+            }
+
+            if (!finalModel) {
+                finalModel = isDev ? 'mock' : 'gpt-5-nano';
+            }
+
             const result = await run(
                 'INSERT INTO conversations (title, model, system_prompt, subcategory_id) VALUES (?, ?, ?, ?)',
-                ['New Chat', model || defaultModel, systemPrompt || 'You are a helpful assistant.', subcategoryId || null]
+                ['New Chat', finalModel, systemPrompt || 'You are a helpful assistant.', subcategoryId || null]
             );
-            return { id: result.id, title: 'New Chat', subcategory_id: subcategoryId };
+            return { id: result.id, title: 'New Chat', subcategory_id: subcategoryId, model: finalModel };
         } catch (err) {
             console.error(err);
             throw err;

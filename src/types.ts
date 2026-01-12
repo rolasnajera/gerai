@@ -30,6 +30,7 @@ export interface Subcategory {
     category_id: number;
     name: string;
     description?: string;
+    default_model?: string;
     created_at: string;
     updated_at: string;
 }

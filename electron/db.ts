@@ -46,6 +46,7 @@ export function initDb(): void {
             category_id INTEGER,
             name TEXT NOT NULL,
             description TEXT,
+            default_model TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
@@ -128,6 +129,24 @@ export function initDb(): void {
                         console.error("Error adding model column to messages:", err);
                     } else {
                         console.log("Successfully added model column to messages.");
+                    }
+                });
+            }
+        });
+
+        // Migration to add default_model to subcategories if missing
+        db!.all("PRAGMA table_info(subcategories)", (err: Error | null, rows: any[]) => {
+            if (err) {
+                console.error("Error checking subcategories table info:", err);
+                return;
+            }
+            const hasDefaultModel = rows.some(row => row.name === 'default_model');
+            if (!hasDefaultModel) {
+                db!.run("ALTER TABLE subcategories ADD COLUMN default_model TEXT", (err: Error | null) => {
+                    if (err) {
+                        console.error("Error adding default_model column to subcategories:", err);
+                    } else {
+                        console.log("Successfully added default_model column to subcategories.");
                     }
                 });
             }

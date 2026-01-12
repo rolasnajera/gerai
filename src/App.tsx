@@ -26,7 +26,7 @@ function App() {
     // Settings State
     const [apiKey, setApiKey] = useState(localStorage.getItem('openai_key') || '');
     const [systemPrompt, setSystemPrompt] = useState(localStorage.getItem('system_prompt') || 'You are a helpful assistant.');
-    const [model, setModel] = useState(DEFAULT_MODEL);
+    const [model, setModel] = useState(localStorage.getItem('global_model') || DEFAULT_MODEL);
 
     // Rename State
     const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -37,7 +37,7 @@ function App() {
     const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
     const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null);
-    const [subcategoryInitialData, setSubcategoryInitialData] = useState<{ name: string; description: string; context: string[] } | undefined>(undefined);
+    const [subcategoryInitialData, setSubcategoryInitialData] = useState<{ name: string; description: string; context: string[]; default_model?: string } | undefined>(undefined);
 
     // Delete Subcategory Modal State
     const [deleteSubcategoryModalOpen, setDeleteSubcategoryModalOpen] = useState(false);
@@ -185,10 +185,38 @@ function App() {
         }
     };
 
+    const handleSetModel = (newModel: string) => {
+        setModel(newModel);
+
+        // If we are in a global chat (or no chat), persist as global preference
+        const currentConv = conversations.find(c => c.id === currentCid);
+        if (!currentCid || (currentConv && !currentConv.subcategory_id)) {
+            localStorage.setItem('global_model', newModel);
+        }
+    };
+
     const handleCreateNewChat = async (subcategoryId?: number) => {
         if (window.electron) {
             try {
-                const newChat = await window.electron.invoke('create-conversation', { model, systemPrompt, subcategoryId });
+                // If in a subcategory, check if it has a default model
+                let targetModel = model;
+                if (subcategoryId) {
+                    const sub = subcategories.find(s => s.id === subcategoryId);
+                    if (sub && sub.default_model) {
+                        targetModel = sub.default_model;
+                        setModel(targetModel); // Sync UI
+                    }
+                } else {
+                    // Global chat: use persisted preference
+                    targetModel = localStorage.getItem('global_model') || DEFAULT_MODEL;
+                    setModel(targetModel);
+                }
+
+                const newChat = await window.electron.invoke('create-conversation', {
+                    model: targetModel,
+                    systemPrompt,
+                    subcategoryId
+                });
                 await loadConversations();
                 setCurrentCid(newChat.id);
                 setMessages([]); // New chat empty
@@ -324,7 +352,8 @@ function App() {
             setSubcategoryInitialData({
                 name: subcategory.name,
                 description: subcategory.description || '',
-                context: context.map((c: any) => c.content)
+                context: context.map((c: any) => c.content),
+                default_model: subcategory.default_model
             });
         }
         setSubcategoryModalOpen(true);
@@ -349,7 +378,7 @@ function App() {
         }
     };
 
-    const handleSaveSubcategory = async (name: string, description: string, context: string[]) => {
+    const handleSaveSubcategory = async (name: string, description: string, context: string[], defaultModel?: string) => {
         if (!window.electron) return;
 
         if (editingSubcategory) {
@@ -357,14 +386,16 @@ function App() {
                 id: editingSubcategory.id,
                 name,
                 description,
-                context
+                context,
+                defaultModel
             });
         } else if (selectedCategory) {
             await window.electron.invoke('create-subcategory', {
                 categoryId: selectedCategory.id,
                 name,
                 description,
-                context
+                context,
+                defaultModel
             });
         }
         await loadSubcategories();
@@ -396,7 +427,7 @@ function App() {
                 isStreaming={isStreaming}
                 streamingMessage={streamingMessage}
                 model={model}
-                setModel={setModel}
+                setModel={handleSetModel}
             />
 
             <SettingsModal

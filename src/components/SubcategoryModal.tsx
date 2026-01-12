@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { AVAILABLE_MODELS } from '../constants/models';
 
 interface SubcategoryModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (name: string, description: string, context: string[]) => void;
+    onSave: (name: string, description: string, context: string[], defaultModel?: string) => void;
     initialData?: {
         name: string;
         description: string;
         context: string[];
+        default_model?: string;
     };
     categoryName: string;
 }
@@ -21,16 +23,19 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
 }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
+    const [defaultModel, setDefaultModel] = useState('');
     const [contextRows, setContextRows] = useState<string[]>(['']);
 
     useEffect(() => {
         if (initialData) {
             setName(initialData.name);
             setDescription(initialData.description);
+            setDefaultModel(initialData.default_model || '');
             setContextRows(initialData.context.length > 0 ? initialData.context : ['']);
         } else {
             setName('');
             setDescription('');
+            setDefaultModel('');
             setContextRows(['']);
         }
     }, [initialData, isOpen]);
@@ -54,7 +59,7 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
 
     const handleSave = () => {
         if (!name.trim()) return;
-        onSave(name.trim(), description.trim(), contextRows.filter(r => r.trim() !== ''));
+        onSave(name.trim(), description.trim(), contextRows.filter(r => r.trim() !== ''), defaultModel || undefined);
         onClose();
     };
 
@@ -89,6 +94,29 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
                             onChange={(e) => setName(e.target.value)}
                             className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                         />
+                    </div>
+
+                    {/* Default Model */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Default Model</label>
+                        <div className="relative">
+                            <select
+                                value={defaultModel}
+                                onChange={(e) => setDefaultModel(e.target.value)}
+                                className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
+                            >
+                                <option value="">Global Default</option>
+                                {AVAILABLE_MODELS.map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                        {m.name}
+                                    </option>
+                                ))}
+                            </select>
+                            <svg className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M6 9l6 6 6-6" />
+                            </svg>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Every new chat in this subcategory will start with this model</p>
                     </div>
 
                     {/* Description */}
