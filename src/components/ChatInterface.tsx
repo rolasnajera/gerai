@@ -136,10 +136,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div
                 ref={containerRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto pt-10 pb-32 px-4 sm:px-10 lg:px-40 scroll-smooth relative"
+                className="flex-1 overflow-y-auto pt-10 pb-32 px-4 sm:px-8 xl:px-20 scroll-smooth relative"
                 id="chat-container"
             >
-                <div className="max-w-3xl mx-auto w-full">
+                <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto w-full">
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center mt-32 text-center opacity-80">
                             <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-full mb-6">
@@ -162,7 +162,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                                     )}
                                 </div>
                                 <div
-                                    className={`${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700'} px-4 py-3 rounded-2xl max-w-[85%] prose dark:prose-invert`}
+                                    className={`${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700'} px-4 py-3 rounded-2xl max-w-[90%] prose dark:prose-invert`}
                                     // marked.parse returns string | Promise<string>. In sync mode it's string.
                                     dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }}
                                 />
@@ -174,7 +174,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     {isStreaming && streamingMessage && (
                         <div className="flex flex-col gap-1 items-start mb-6">
                             <div className="text-xs text-gray-400 uppercase font-semibold mx-1">assistant</div>
-                            <div className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-2 border-blue-400 dark:border-blue-600 px-4 py-3 rounded-2xl max-w-[85%] prose dark:prose-invert animate-pulse-border"
+                            <div className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-2 border-blue-400 dark:border-blue-600 px-4 py-3 rounded-2xl max-w-[90%] prose dark:prose-invert animate-pulse-border"
                                 dangerouslySetInnerHTML={{ __html: marked.parse(streamingMessage) as string }}
                             />
                         </div>
@@ -224,7 +224,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
             {/* Input Area */}
             <div className="absolute bottom-0 w-full bg-white dark:bg-gray-900 pb-8 pt-6 px-4 border-t border-transparent">
-                <div className="max-w-3xl mx-auto w-full relative">
+                <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto w-full relative">
                     <form onSubmit={handleSubmit} className="relative shadow-sm hover:shadow-md transition-shadow rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
                         <textarea
                             ref={textareaRef}
