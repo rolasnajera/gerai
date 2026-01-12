@@ -180,11 +180,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         </div>
                     )}
 
-                    {isLoading && !isStreaming && (
-                        <div className="flex gap-2 items-center text-gray-400 text-sm animate-pulse ml-4 mb-6">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animation-delay-200"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animation-delay-400"></div>
+                    {isLoading && !streamingMessage && (
+                        <div className="flex flex-col gap-1 items-start mb-6 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-bottom-2">
+                            <div className="text-xs text-gray-400 uppercase font-semibold mx-1">assistant</div>
+                            <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 px-5 py-3 rounded-2xl shadow-sm">
+                                <div className="relative flex items-center justify-center w-5 h-5">
+                                    <div className="absolute inset-0 bg-blue-500/30 rounded-full animate-pulse-glow" />
+                                    <div className="w-2 h-2 bg-blue-600 dark:bg-blue-400 rounded-full animate-pulse" />
+                                </div>
+                                <div className="flex items-center h-5">
+                                    <span className="text-sm font-mono font-bold text-blue-600 dark:text-blue-400 tracking-wider animate-typewriter border-r-2 border-blue-500 dark:border-blue-400 pr-1">
+                                        geraing...
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     )}
                     <div ref={messagesEndRef} />

@@ -6,7 +6,78 @@
   .drag {
     -webkit-app-region: drag;
   }
+
   .no-drag {
     -webkit-app-region: no-drag;
   }
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    opacity: 0.5;
+    filter: blur(8px);
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    filter: blur(12px);
+    transform: scale(1.05);
+  }
+}
+
+@keyframes typewriter {
+  from {
+    width: 0
+  }
+
+  to {
+    width: 100%
+  }
+}
+
+@keyframes blink {
+
+  from,
+  to {
+    border-color: transparent
+  }
+
+  50% {
+    border-color: currentColor
+  }
+}
+
+@keyframes pulse-border {
+
+  0%,
+  100% {
+    border-color: rgba(59, 130, 246, 0.5);
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.2);
+  }
+
+  50% {
+    border-color: rgba(59, 130, 246, 1);
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-typewriter {
+  display: inline-block;
+  vertical-align: bottom;
+  overflow: hidden;
+  white-space: nowrap;
+  animation:
+    typewriter 2s steps(10, end) infinite alternate,
+    blink .75s step-end infinite;
+}
+
+.animate-pulse-border {
+  animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
