@@ -27,16 +27,44 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setModel
 }) => {
     const [input, setInput] = useState('');
+    const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const lastMessageCountRef = useRef(messages.length);
 
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
+        messagesEndRef.current?.scrollIntoView({ behavior });
+    };
+
+    const handleScroll = () => {
+        if (containerRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+            // If we are within 100px of the bottom, we consider it "at the bottom"
+            const isAtBottom = scrollHeight - scrollTop - clientHeight < 100;
+            setShouldAutoScroll(isAtBottom);
+        }
     };
 
     useEffect(() => {
-        scrollToBottom();
-    }, [messages, isLoading, streamingMessage]);
+        // Only scroll automatically when a new message is added (usually by the user)
+        // or when the component first loads with messages.
+        const messageCountIncreased = messages.length > lastMessageCountRef.current;
+        lastMessageCountRef.current = messages.length;
+
+        if (messageCountIncreased) {
+            scrollToBottom("auto");
+            setShouldAutoScroll(true);
+        }
+    }, [messages]);
+
+    useEffect(() => {
+        // If loading starts (new request), ensure we scroll to start seeing the response
+        if (isLoading && !isStreaming) {
+            scrollToBottom("auto");
+            setShouldAutoScroll(true);
+        }
+    }, [isLoading, isStreaming]);
 
     useEffect(() => {
         if (textareaRef.current) {
@@ -103,7 +131,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </header>
 
             {/* Messages Container */}
-            <div className="flex-1 overflow-y-auto pt-10 pb-32 px-4 sm:px-10 lg:px-40 scroll-smooth" id="chat-container">
+            <div
+                ref={containerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto pt-10 pb-32 px-4 sm:px-10 lg:px-40 scroll-smooth relative"
+                id="chat-container"
+            >
                 <div className="max-w-3xl mx-auto w-full">
                     {messages.length === 0 ? (
                         <div className="flex flex-col items-center justify-center mt-32 text-center opacity-80">
@@ -154,6 +187,28 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     )}
                     <div ref={messagesEndRef} />
                 </div>
+
+                {/* Scroll to Bottom Button */}
+                {!shouldAutoScroll && (isStreaming || messages.length > 0) && (
+                    <button
+                        onClick={() => {
+                            setShouldAutoScroll(true);
+                            scrollToBottom();
+                        }}
+                        className="fixed bottom-32 right-8 z-20 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full shadow-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-all transform hover:scale-110 text-blue-600 dark:text-blue-400"
+                        title="Scroll to bottom"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M7 13l5 5 5-5M7 6l5 5 5-5" />
+                        </svg>
+                        {isStreaming && (
+                            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+                            </span>
+                        )}
+                    </button>
+                )}
             </div>
 
             {/* Input Area */}

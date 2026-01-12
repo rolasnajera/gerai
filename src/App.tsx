@@ -303,7 +303,7 @@ function App() {
     };
 
     const handleDeleteChat = async (cid: number) => {
-        if (!confirm("Are you sure?")) return;
+        if (!confirm("Are you sure you want to delete this chat?")) return;
         if (window.electron) {
             await window.electron.invoke('delete-conversation', cid);
             if (currentCid === cid) {
