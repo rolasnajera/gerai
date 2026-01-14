@@ -23,11 +23,36 @@
 
 ## 📦 Installation
 
+### For Users
+
+**macOS (Apple Silicon)**
+
+1.  **Download the latest release**
+    - Go to [Releases](https://github.com/rolasnajera/gerai/releases)
+    - Download `GERAI-X.X.X-arm64.dmg` (where X.X.X is the version number)
+
+2.  **Install the application**
+    - Open the downloaded `.dmg` file
+    - Drag **GERAI** to your Applications folder
+    - Launch GERAI from Applications
+
+3.  **Set your OpenAI API key**
+    - Open the app, click the gear icon (Settings)
+    - Paste your OpenAI API key
+    - Optionally set a custom system prompt
+    - Your key is stored locally on your machine; no server or proxy is used
+
+**Auto-Updates**
+
+Once installed, GERAI will automatically check for updates and notify you when new versions are available. Simply click "Install Now" when prompted to update to the latest version.
+
+### For Developers
+
 To build and run GERAI locally, you'll need [Node.js](https://nodejs.org/) (v18+ recommended) and [Git](https://git-scm.com/) installed.
 
 1.  **Clone the repository**
     ```bash
-    git clone https://github.com/yourusername/gerai.git
+    git clone https://github.com/rolasnajera/gerai.git
     cd gerai
     ```
 
@@ -42,10 +67,6 @@ To build and run GERAI locally, you'll need [Node.js](https://nodejs.org/) (v18+
     ```
     This starts the Vite dev server and the Electron app (auto‑reloading the main process via `tsup`).
     In development mode, the **Mock Model** is selected by default, allowing you to test the chat interface and streaming without an API key or costs.
-
-4.  **Set your OpenAI API key**
-    - Open the app, click the gear icon (Settings), paste your API key, and optionally set a system prompt.
-    - Your key is stored locally on your machine; no server or proxy is used.
 
 ## 🏗️ Building for Production
 
