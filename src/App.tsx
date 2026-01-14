@@ -6,6 +6,7 @@ import RenameModal from './components/RenameModal';
 import MoveChatModal from './components/MoveChatModal';
 import SubcategoryModal from './components/SubcategoryModal';
 import DeleteSubcategoryModal from './components/DeleteSubcategoryModal';
+import MemoryModal from './components/MemoryModal';
 import UpdateNotification from './components/UpdateNotification';
 import { Message, Conversation, Category, Subcategory } from './types';
 
@@ -19,6 +20,8 @@ function App() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [memoryOpen, setMemoryOpen] = useState(false);
+    const [memoryFilterId, setMemoryFilterId] = useState<number | null | undefined>(undefined);
 
     // Streaming state
     const [isStreaming, setIsStreaming] = useState(false);
@@ -446,6 +449,10 @@ function App() {
                 onAddSubcategory={handleAddSubcategory}
                 onEditSubcategory={handleEditSubcategory}
                 onDeleteSubcategory={handleDeleteSubcategoryRequest}
+                onOpenMemory={(id) => {
+                    setMemoryFilterId(id);
+                    setMemoryOpen(true);
+                }}
             />
 
             <ChatInterface
@@ -498,6 +505,13 @@ function App() {
                 onClose={() => setDeleteSubcategoryModalOpen(false)}
                 onConfirm={handleConfirmDeleteSubcategory}
                 subcategoryName={deletingSubcategory?.name || ''}
+            />
+
+            <MemoryModal
+                isOpen={memoryOpen}
+                onClose={() => setMemoryOpen(false)}
+                subcategories={subcategories}
+                initialSubcategoryId={memoryFilterId}
             />
 
             <UpdateNotification />

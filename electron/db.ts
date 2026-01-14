@@ -59,7 +59,9 @@ export function initDb(): void {
             subcategory_id INTEGER,
             conversation_id INTEGER,
             content TEXT NOT NULL,
+            source TEXT DEFAULT 'manual', -- 'manual' or 'ai'
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE,
             FOREIGN KEY (subcategory_id) REFERENCES subcategories(id) ON DELETE CASCADE,
             FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
@@ -152,6 +154,24 @@ export function initDb(): void {
             }
         });
 
+        // Migration to add source and updated_at to context if missing
+        db!.all("PRAGMA table_info(context)", (err: Error | null, rows: any[]) => {
+            if (err) return;
+            const hasSource = rows.some(row => row.name === 'source');
+            if (!hasSource) {
+                db!.run("ALTER TABLE context ADD COLUMN source TEXT DEFAULT 'manual'");
+            }
+            const hasUpdatedAt = rows.some(row => row.name === 'updated_at');
+            if (!hasUpdatedAt) {
+                // Cannot add a column with non-constant default like CURRENT_TIMESTAMP in some SQLite versions
+                db!.run("ALTER TABLE context ADD COLUMN updated_at DATETIME", (err) => {
+                    if (!err) {
+                        db!.run("UPDATE context SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL");
+                    }
+                });
+            }
+        });
+
         // Seed default categories
         const defaultCategories = [
             { name: 'Projects', icon: 'briefcase', sort_order: 1 },
@@ -230,4 +250,35 @@ export function all<T = any>(sql: string, params: any[] = []): Promise<T[]> {
             }
         });
     });
+}
+
+export async function upsertContext(params: {
+    content: string,
+    source: 'manual' | 'ai',
+    subcategoryId?: number | null,
+    categoryId?: number | null
+}): Promise<number> {
+    const { content, source, subcategoryId, categoryId } = params;
+    console.log('[DB] upsertContext params:', { content: content.substring(0, 20) + '...', source, subcategoryId, categoryId });
+
+    // Check if an exact match exists for this subcategory/global
+    let existing: { id: number } | undefined;
+    if (subcategoryId) {
+        existing = await get<{ id: number }>('SELECT id FROM context WHERE content = ? AND subcategory_id = ?', [content, subcategoryId]);
+    } else {
+        existing = await get<{ id: number }>('SELECT id FROM context WHERE content = ? AND subcategory_id IS NULL', [content]);
+    }
+
+    if (existing) {
+        console.log('Memory de-duplication: updating existing row', existing.id);
+        await run('UPDATE context SET content = ?, source = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [content, source, existing.id]);
+        return existing.id;
+    } else {
+        console.log('Memory system: inserting new fact');
+        const result = await run(
+            'INSERT INTO context (content, source, subcategory_id, category_id) VALUES (?, ?, ?, ?)',
+            [content, source, subcategoryId || null, categoryId || null]
+        );
+        return result.id;
+    }
 }

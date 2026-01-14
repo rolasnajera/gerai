@@ -15,6 +15,7 @@ interface SidebarProps {
     onAddSubcategory: (category: Category) => void;
     onEditSubcategory: (subcategory: Subcategory) => void;
     onDeleteSubcategory: (subcategory: Subcategory) => void;
+    onOpenMemory: (subcategoryId?: number | null) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -30,7 +31,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     onOpenSettings,
     onAddSubcategory,
     onEditSubcategory,
-    onDeleteSubcategory
+    onDeleteSubcategory,
+    onOpenMemory
 }) => {
     const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({ 1: true });
     const [expandedSubcategories, setExpandedSubcategories] = useState<Record<number, boolean>>({});
@@ -144,6 +146,16 @@ const Sidebar: React.FC<SidebarProps> = ({
 
                                                 {/* Subcategory Actions */}
                                                 <div className="flex items-center gap-0.5 opacity-0 group-hover/sub:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            onOpenMemory(sub.id);
+                                                        }}
+                                                        className="p-1 hover:text-blue-500"
+                                                        title="Memory Bank"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12s-3-7-10-7-10 7-10 7 3 7 10 7 10-7 10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                                                    </button>
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -267,15 +279,25 @@ const Sidebar: React.FC<SidebarProps> = ({
 
             {/* User Settings */}
             <div className="p-4 border-t border-gray-100 dark:border-gray-900 bg-gray-50/50 dark:bg-gray-950/50">
-                <button
-                    onClick={onOpenSettings}
-                    className="flex items-center gap-3 text-sm font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 w-full p-2.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-900 transition-all active:scale-[0.98]"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                    </svg>
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={onOpenSettings}
+                        className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 p-2.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-900 transition-all active:scale-[0.98]"
+                        title="Settings"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
+                    <button
+                        onClick={() => onOpenMemory(null)}
+                        className="flex-1 flex items-center justify-center gap-2 text-sm font-semibold text-gray-500 hover:text-gray-900 dark:hover:text-gray-100 p-2.5 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-900 transition-all active:scale-[0.98]"
+                        title="Global Memory Bank"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12s-3-7-10-7-10 7-10 7 3 7 10 7 10-7 10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                    </button>
+                </div>
                 {appVersion && (
                     <div className="mt-2 px-2.5 text-[10px] text-gray-400 dark:text-gray-600 font-medium">
                         v{appVersion}
