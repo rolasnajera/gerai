@@ -46,21 +46,7 @@ export default function UpdateNotification() {
         });
     }, []);
 
-    const handleInstallNow = async () => {
-        try {
-            console.log('Installing update...');
-            const result = await window.electron.installUpdate();
-            if (!result.success) {
-                console.error('Failed to install update:', result.message);
-                alert('Failed to install update. Please try restarting the app.');
-            }
-        } catch (err) {
-            console.error('Error installing update:', err);
-            alert('Failed to install update. Please try restarting the app.');
-        }
-    };
-
-    const handleLater = () => {
+    const handleDismiss = () => {
         setUpdateAvailable(false);
         setUpdateDownloaded(false);
     };
@@ -89,11 +75,11 @@ export default function UpdateNotification() {
                 </div>
                 <div className="flex-1">
                     <h3 className="text-sm font-semibold text-white mb-1">
-                        {updateDownloaded ? 'Update Ready to Install' : 'Update Available'}
+                        {updateDownloaded ? 'Update Ready' : 'Update Available'}
                     </h3>
                     <p className="text-xs text-gray-300 mb-3">
                         {updateDownloaded
-                            ? `Version ${updateInfo?.version} has been downloaded and is ready to install.`
+                            ? `Version ${updateInfo?.version} will be installed automatically when you quit the app.`
                             : `Version ${updateInfo?.version} is available.${isDownloading ? ' Downloading...' : ''}`}
                     </p>
 
@@ -111,22 +97,12 @@ export default function UpdateNotification() {
                         </div>
                     )}
 
-                    <div className="flex gap-2">
-                        {updateDownloaded && (
-                            <button
-                                onClick={handleInstallNow}
-                                className="flex-1 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded transition-colors"
-                            >
-                                Install Now
-                            </button>
-                        )}
-                        <button
-                            onClick={handleLater}
-                            className="flex-1 px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
-                        >
-                            Later
-                        </button>
-                    </div>
+                    <button
+                        onClick={handleDismiss}
+                        className="w-full px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-white text-xs font-medium rounded transition-colors"
+                    >
+                        OK
+                    </button>
                 </div>
             </div>
         </div>
