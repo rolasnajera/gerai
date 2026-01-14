@@ -7,6 +7,7 @@ interface Window {
         on: (channel: string, callback: (...args: any[]) => void) => any;
         removeListener: (channel: string, callback: any) => void;
         // Auto-update methods
+        getAppVersion: () => Promise<string>;
         checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; message?: string }>;
         installUpdate: () => Promise<{ success: boolean; message?: string }>;
         onUpdateChecking: (callback: () => void) => void;

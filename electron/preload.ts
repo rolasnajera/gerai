@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electron', {
         ipcRenderer.removeListener(channel, callback);
     },
     // Auto-update methods
+    getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
     installUpdate: () => ipcRenderer.invoke('install-update'),
     onUpdateChecking: (callback: () => void) => {

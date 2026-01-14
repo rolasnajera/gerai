@@ -43,6 +43,15 @@ app.whenReady().then(() => {
     // Connect to DB
     connect(dbPath);
 
+    // Set about panel options for macOS and other platforms
+    app.setAboutPanelOptions({
+        applicationName: 'GERAI',
+        applicationVersion: app.getVersion(),
+        version: app.getVersion(),
+        copyright: 'Copyright © 2026 Rolas Najera',
+        credits: 'Built with React, Electron, and SQLite',
+    });
+
     createWindow();
 
     app.on('activate', () => {
@@ -133,6 +142,10 @@ function initAutoUpdater() {
 }
 
 function setupIPC() {
+    ipcMain.handle('get-app-version', () => {
+        return app.getVersion();
+    });
+
     ipcMain.handle('get-categories', async () => {
         try {
             return await all('SELECT * FROM categories ORDER BY sort_order ASC');
