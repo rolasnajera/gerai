@@ -3,6 +3,7 @@ import path from 'path';
 import { run, get, all, connect } from './db';
 import { getOpenAIResponse } from './services/openai';
 import { getMockResponse } from './services/mock';
+import { autoUpdater } from 'electron-updater';
 
 let mainWindow: BrowserWindow | undefined;
 
@@ -51,6 +52,11 @@ app.whenReady().then(() => {
     });
 
     setupIPC();
+
+    // Initialize auto-updater (only in production)
+    if (!isDev) {
+        initAutoUpdater();
+    }
 });
 
 app.on('window-all-closed', () => {
@@ -58,6 +64,73 @@ app.on('window-all-closed', () => {
         app.quit();
     }
 });
+
+function initAutoUpdater() {
+    // Configure auto-updater
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    // Check for updates on app start
+    autoUpdater.checkForUpdatesAndNotify();
+
+    // Check for updates every 4 hours
+    setInterval(() => {
+        autoUpdater.checkForUpdatesAndNotify();
+    }, 4 * 60 * 60 * 1000);
+
+    // Event handlers
+    autoUpdater.on('checking-for-update', () => {
+        console.log('Checking for updates...');
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-checking');
+        }
+    });
+
+    autoUpdater.on('update-available', (info) => {
+        console.log('Update available:', info.version);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-available', {
+                version: info.version,
+                releaseDate: info.releaseDate,
+                releaseName: info.releaseName,
+            });
+        }
+    });
+
+    autoUpdater.on('update-not-available', (info) => {
+        console.log('Update not available. Current version:', info.version);
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+        console.log(`Download progress: ${progressObj.percent.toFixed(2)}%`);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-download-progress', {
+                percent: progressObj.percent,
+                bytesPerSecond: progressObj.bytesPerSecond,
+                transferred: progressObj.transferred,
+                total: progressObj.total,
+            });
+        }
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+        console.log('Update downloaded:', info.version);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-downloaded', {
+                version: info.version,
+            });
+        }
+    });
+
+    autoUpdater.on('error', (err) => {
+        console.error('Auto-updater error:', err);
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('update-error', {
+                message: err.message,
+            });
+        }
+    });
+}
 
 function setupIPC() {
     ipcMain.handle('get-categories', async () => {
@@ -387,6 +460,27 @@ function setupIPC() {
             return { success: false, message: 'Request not found' };
         } catch (err: any) {
             console.error('Cancel error:', err);
+            return { success: false, message: err.message };
+        }
+    });
+
+    // Auto-update IPC handlers
+    ipcMain.handle('check-for-updates', async () => {
+        try {
+            const result = await autoUpdater.checkForUpdates();
+            return { success: true, updateInfo: result?.updateInfo };
+        } catch (err: any) {
+            console.error('Check for updates error:', err);
+            return { success: false, message: err.message };
+        }
+    });
+
+    ipcMain.handle('install-update', async () => {
+        try {
+            autoUpdater.quitAndInstall();
+            return { success: true };
+        } catch (err: any) {
+            console.error('Install update error:', err);
             return { success: false, message: err.message };
         }
     });

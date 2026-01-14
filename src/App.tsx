@@ -6,6 +6,7 @@ import RenameModal from './components/RenameModal';
 import MoveChatModal from './components/MoveChatModal';
 import SubcategoryModal from './components/SubcategoryModal';
 import DeleteSubcategoryModal from './components/DeleteSubcategoryModal';
+import UpdateNotification from './components/UpdateNotification';
 import { Message, Conversation, Category, Subcategory } from './types';
 
 import { DEFAULT_MODEL } from './constants/models';
@@ -498,6 +499,8 @@ function App() {
                 onConfirm={handleConfirmDeleteSubcategory}
                 subcategoryName={deletingSubcategory?.name || ''}
             />
+
+            <UpdateNotification />
         </div>
     );
 }

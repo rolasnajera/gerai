@@ -6,5 +6,13 @@ interface Window {
         invoke: (channel: string, data?: any) => Promise<any>;
         on: (channel: string, callback: (...args: any[]) => void) => any;
         removeListener: (channel: string, callback: any) => void;
+        // Auto-update methods
+        checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; message?: string }>;
+        installUpdate: () => Promise<{ success: boolean; message?: string }>;
+        onUpdateChecking: (callback: () => void) => void;
+        onUpdateAvailable: (callback: (info: any) => void) => void;
+        onUpdateDownloadProgress: (callback: (progress: any) => void) => void;
+        onUpdateDownloaded: (callback: (info: any) => void) => void;
+        onUpdateError: (callback: (error: any) => void) => void;
     };
 }

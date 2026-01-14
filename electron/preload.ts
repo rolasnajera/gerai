@@ -10,5 +10,23 @@ contextBridge.exposeInMainWorld('electron', {
     },
     removeListener: (channel: string, callback: any) => {
         ipcRenderer.removeListener(channel, callback);
-    }
+    },
+    // Auto-update methods
+    checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+    installUpdate: () => ipcRenderer.invoke('install-update'),
+    onUpdateChecking: (callback: () => void) => {
+        ipcRenderer.on('update-checking', callback);
+    },
+    onUpdateAvailable: (callback: (info: any) => void) => {
+        ipcRenderer.on('update-available', (_event, info) => callback(info));
+    },
+    onUpdateDownloadProgress: (callback: (progress: any) => void) => {
+        ipcRenderer.on('update-download-progress', (_event, progress) => callback(progress));
+    },
+    onUpdateDownloaded: (callback: (info: any) => void) => {
+        ipcRenderer.on('update-downloaded', (_event, info) => callback(info));
+    },
+    onUpdateError: (callback: (error: any) => void) => {
+        ipcRenderer.on('update-error', (_event, error) => callback(error));
+    },
 });
