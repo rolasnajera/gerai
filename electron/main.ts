@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
 import path from 'path';
-import { run, get, all, connect } from './db';
-import { getOpenAIResponse } from './services/openai';
+import { run, get, all, connect, upsertContext } from './db';
+import { getOpenAIResponse, extractMemories } from './services/openai';
 import { getMockResponse } from './services/mock';
 import { autoUpdater } from 'electron-updater';
 
@@ -226,6 +226,41 @@ function setupIPC() {
         }
     });
 
+    ipcMain.handle('get-all-context', async () => {
+        try {
+            return await all(`
+                SELECT c.*, s.name as subcategory_name, cat.name as category_name 
+                FROM context c 
+                LEFT JOIN subcategories s ON c.subcategory_id = s.id 
+                LEFT JOIN categories cat ON c.category_id = cat.id 
+                ORDER BY c.created_at DESC
+            `);
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    });
+
+    ipcMain.handle('update-context-item', async (_event: IpcMainInvokeEvent, { id, content, subcategoryId }: { id: number, content: string, subcategoryId?: number | null }) => {
+        try {
+            await run('UPDATE context SET content = ?, subcategory_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [content, subcategoryId === undefined ? null : subcategoryId, id]);
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
+    ipcMain.handle('delete-context-item', async (_event: IpcMainInvokeEvent, id: number) => {
+        try {
+            await run('DELETE FROM context WHERE id = ?', [id]);
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
     ipcMain.handle('get-conversations', async () => {
         try {
             return await all('SELECT * FROM conversations ORDER BY created_at DESC');
@@ -351,14 +386,25 @@ function setupIPC() {
             let finalSystemPrompt = systemPrompt || (conv ? conv.system_prompt : "You are a helpful assistant.");
             let finalMessage = message;
 
-            // 3.1 Fetch Context for injection into Input
+            // 3.1 Fetch Context (Hierarchical: Global + Subcategory)
+            let combinedContext = "";
+
+            // Fetch Global Context
+            const globalResults = await all<{ content: string }>('SELECT content FROM context WHERE subcategory_id IS NULL');
+            if (globalResults.length > 0) {
+                combinedContext += `[GLOBAL MEMORY]\n${globalResults.map(r => r.content).join('\n')}\n\n`;
+            }
+
+            // Fetch Subcategory Context
             if (subcategoryId) {
-                const results = await all<{ content: string }>('SELECT content FROM context WHERE subcategory_id = ?', [subcategoryId]);
-                if (results.length > 0) {
-                    const localizedContext = results.map(r => r.content).join('\n');
-                    // Prepend context to the message (Input parameter)
-                    finalMessage = `[CONTEXT]\n${localizedContext}\n\n[USER MESSAGE]\n${message}`;
+                const subResults = await all<{ content: string }>('SELECT content FROM context WHERE subcategory_id = ?', [subcategoryId]);
+                if (subResults.length > 0) {
+                    combinedContext += `[SUBCATEGORY MEMORY]\n${subResults.map(r => r.content).join('\n')}\n\n`;
                 }
+            }
+
+            if (combinedContext) {
+                finalMessage = `${combinedContext}[USER MESSAGE]\n${message}`;
             }
 
             const instructions = !lastResponseId ? finalSystemPrompt : undefined;
@@ -440,6 +486,30 @@ function setupIPC() {
                     response_id: newResponseId,
                     aborted: isAborted
                 });
+            }
+
+            // Extract memory/facts after a successful response
+            if (!isAborted && aiContent && apiKey && messageModel !== 'mock') {
+                const currentCid = cid;
+                const currentSubcategoryId = subcategoryId;
+                const userMsg = message;
+                // Fire and forget so we don't block the UI
+                (async () => {
+                    try {
+                        console.log("Extracting facts for conversation:", currentCid, "Subcategory ID:", currentSubcategoryId);
+                        const facts = await extractMemories(apiKey, userMsg);
+                        for (const fact of (facts as any[])) {
+                            console.log("Upserting fact with subcategoryId:", currentSubcategoryId || null);
+                            await upsertContext({
+                                content: fact.content,
+                                source: 'ai',
+                                subcategoryId: currentSubcategoryId || null
+                            });
+                        }
+                    } catch (e) {
+                        console.error("Memory extraction failed:", e);
+                    }
+                })();
             }
 
             return { requestId, conversationId: cid, aborted: isAborted };

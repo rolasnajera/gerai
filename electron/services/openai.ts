@@ -120,3 +120,56 @@ export async function getOpenAIResponse(
         }
     });
 }
+
+export async function extractMemories(
+    apiKey: string,
+    userMessage: string,
+    model: string = 'gpt-4o-mini'
+): Promise<string[]> {
+    try {
+        const client = new OpenAI({
+            apiKey: apiKey,
+            dangerouslyAllowBrowser: false
+        });
+
+        const prompt = `You are a memory extraction assistant. Your job is to identify durable, long-term facts about the user from their message.
+
+User Message: "${userMessage}"
+
+Rules:
+1. Extract facts like preferences, goals, locations, tools used, or personal background.
+2. Ignore ephemeral information (emotions, current hunger, temporary tasks).
+3. Do NOT extract sensitive info like passwords, API keys, or direct secrets.
+4. Keep facts concise and atomic.
+5. Identify if the fact is "Global" (about the user's life/identity) or "Specific" (about a particular task/project).
+6. Return a JSON object with a "facts" array, where each fact is an object: { "content": "fact text", "type": "global" | "specific" }.
+
+Example Output:
+{
+  "facts": [
+    { "content": "User prefers TypeScript over JavaScript", "type": "global" },
+    { "content": "This project uses the OpenAI responses API", "type": "specific" }
+  ]
+}
+
+If no new facts are found, return {"facts": []}.`;
+
+        const response = await client.chat.completions.create({
+            model: model,
+            messages: [{ role: 'system', content: prompt }],
+            response_format: { type: 'json_object' }
+        });
+
+        const content = response.choices[0].message.content;
+        console.log('AI Memory Extraction RAW:', content);
+        if (!content) return [];
+
+        const parsed = JSON.parse(content);
+        const facts = parsed.facts || [];
+        console.log(`Extracted ${facts.length} facts`);
+        return facts;
+    } catch (error) {
+        console.error('Error extracting memories:', error);
+        return [];
+    }
+}

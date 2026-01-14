@@ -37,11 +37,16 @@ export interface Subcategory {
 
 export interface Context {
     id: number;
-    category_id?: number;
-    subcategory_id?: number;
-    conversation_id?: number;
+    category_id?: number | null;
+    subcategory_id?: number | null;
+    conversation_id?: number | null;
     content: string;
+    source: 'manual' | 'ai';
     created_at: string;
+    updated_at: string;
+    // Joined fields
+    subcategory_name?: string;
+    category_name?: string;
 }
 
 export interface ElectronAPI {
