@@ -10,7 +10,7 @@ import MemoryModal from './components/MemoryModal';
 import UpdateNotification from './components/UpdateNotification';
 import { Message, Conversation, Category, Subcategory } from './types';
 
-import { DEFAULT_MODEL } from './constants/models';
+import { DEFAULT_MODEL, AVAILABLE_MODELS, Model } from './constants/models';
 
 function App() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -31,7 +31,13 @@ function App() {
     // Settings State
     const [apiKey, setApiKey] = useState(localStorage.getItem('openai_key') || '');
     const [systemPrompt, setSystemPrompt] = useState(localStorage.getItem('system_prompt') || 'You are a helpful assistant.');
-    const [model, setModel] = useState(localStorage.getItem('global_model') || DEFAULT_MODEL);
+    const [model, setModel] = useState(() => {
+        const saved = localStorage.getItem('global_model');
+        if (saved && AVAILABLE_MODELS.some((m: Model) => m.id === saved)) {
+            return saved;
+        }
+        return DEFAULT_MODEL;
+    });
 
     // Rename State
     const [renameModalOpen, setRenameModalOpen] = useState(false);
