@@ -207,6 +207,16 @@ function setupIPC() {
         }
     });
 
+    ipcMain.handle('move-conversation', async (_event: IpcMainInvokeEvent, { id, subcategoryId }: { id: number, subcategoryId: number | null }) => {
+        try {
+            await run('UPDATE conversations SET subcategory_id = ? WHERE id = ?', [subcategoryId, id]);
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
     ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, apiKey, systemPrompt, requestId }: { conversationId?: number, message: string, model?: string, apiKey: string, systemPrompt?: string, requestId: string }) => {
         let cid = conversationId;
         // Use the requestId provided by the frontend

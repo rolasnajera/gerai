@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsModal from './components/SettingsModal';
 import RenameModal from './components/RenameModal';
+import MoveChatModal from './components/MoveChatModal';
 import SubcategoryModal from './components/SubcategoryModal';
 import DeleteSubcategoryModal from './components/DeleteSubcategoryModal';
 import { Message, Conversation, Category, Subcategory } from './types';
@@ -32,6 +33,11 @@ function App() {
     const [renameModalOpen, setRenameModalOpen] = useState(false);
     const [renameCid, setRenameCid] = useState<number | null>(null);
     const [renameTitle, setRenameTitle] = useState('');
+
+    // Move State
+    const [moveModalOpen, setMoveModalOpen] = useState(false);
+    const [moveCid, setMoveCid] = useState<number | null>(null);
+    const [moveCurrentSubId, setMoveCurrentSubId] = useState<number | null>(null);
 
     // Subcategory Modal State
     const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
@@ -335,6 +341,28 @@ function App() {
         setRenameCid(null);
     };
 
+    const handleMoveChat = (cid: number) => {
+        const conv = conversations.find(c => c.id === cid);
+        if (conv) {
+            setMoveCid(cid);
+            setMoveCurrentSubId(conv.subcategory_id ?? null);
+            setMoveModalOpen(true);
+        }
+    };
+
+    const handleConfirmMove = async (subcategoryId: number | null) => {
+        if (moveCid && window.electron) {
+            try {
+                await window.electron.invoke('move-conversation', { id: moveCid, subcategoryId });
+                await loadConversations();
+            } catch (err) {
+                console.error("Failed to move conversation", err);
+            }
+        }
+        setMoveModalOpen(false);
+        setMoveCid(null);
+    };
+
     // Subcategory Handlers
     const handleAddSubcategory = (category: Category) => {
         setSelectedCategory(category);
@@ -412,6 +440,7 @@ function App() {
                 onCreateNewChat={handleCreateNewChat}
                 onDeleteChat={handleDeleteChat}
                 onRenameChat={handleRenameChat}
+                onMoveChat={handleMoveChat}
                 onOpenSettings={() => setSettingsOpen(true)}
                 onAddSubcategory={handleAddSubcategory}
                 onEditSubcategory={handleEditSubcategory}
@@ -444,6 +473,15 @@ function App() {
                 onClose={() => setRenameModalOpen(false)}
                 onSave={handleFinishRename}
                 initialTitle={renameTitle}
+            />
+
+            <MoveChatModal
+                isOpen={moveModalOpen}
+                onClose={() => setMoveModalOpen(false)}
+                onConfirm={handleConfirmMove}
+                categories={categories}
+                subcategories={subcategories}
+                currentSubcategoryId={moveCurrentSubId}
             />
 
             <SubcategoryModal

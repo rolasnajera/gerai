@@ -10,6 +10,7 @@ interface SidebarProps {
     onCreateNewChat: (subcategoryId?: number) => void;
     onDeleteChat: (cid: number) => void;
     onRenameChat: (cid: number, currentTitle: string) => void;
+    onMoveChat: (cid: number) => void;
     onOpenSettings: () => void;
     onAddSubcategory: (category: Category) => void;
     onEditSubcategory: (subcategory: Subcategory) => void;
@@ -25,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     onCreateNewChat,
     onDeleteChat,
     onRenameChat,
+    onMoveChat,
     onOpenSettings,
     onAddSubcategory,
     onEditSubcategory,
@@ -181,12 +183,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                                     <button
                                                                         onClick={(e) => { e.stopPropagation(); onRenameChat(c.id, c.title); }}
                                                                         className="p-0.5 hover:text-blue-500"
+                                                                        title="Rename"
                                                                     >
                                                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                                                     </button>
                                                                     <button
+                                                                        onClick={(e) => { e.stopPropagation(); onMoveChat(c.id); }}
+                                                                        className="p-0.5 hover:text-blue-500"
+                                                                        title="Move"
+                                                                    >
+                                                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><path d="M12 11v6"></path><path d="M9 14l3 3 3-3"></path></svg>
+                                                                    </button>
+                                                                    <button
                                                                         onClick={(e) => { e.stopPropagation(); onDeleteChat(c.id); }}
                                                                         className="p-0.5 hover:text-red-500"
+                                                                        title="Delete"
                                                                     >
                                                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
                                                                     </button>
@@ -220,12 +231,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onRenameChat(c.id, c.title); }}
                                         className="p-0.5 hover:text-blue-500"
+                                        title="Rename"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
                                     </button>
                                     <button
+                                        onClick={(e) => { e.stopPropagation(); onMoveChat(c.id); }}
+                                        className="p-0.5 hover:text-blue-500"
+                                        title="Move"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><path d="M12 11v6"></path><path d="M9 14l3 3 3-3"></path></svg>
+                                    </button>
+                                    <button
                                         onClick={(e) => { e.stopPropagation(); onDeleteChat(c.id); }}
                                         className="p-0.5 hover:text-red-500"
+                                        title="Delete"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
                                     </button>
