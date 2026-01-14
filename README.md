@@ -56,6 +56,21 @@ npm run dist
 ```
 The packaged installers/binaries will be located in the `release/` folder.
 
+## 🚀 Releases & CI/CD
+
+This project uses **GitHub Actions** for automated releases. To start a new release (e.g., version `0.0.1`):
+
+1.  **Update Version**: The version in `package.json` should be set (e.g., `"0.0.1"`).
+2.  **Tag the commit**:
+    ```bash
+    git tag v0.0.1
+    ```
+3.  **Push the tag**:
+    ```bash
+    git push origin v0.0.1
+    ```
+GitHub Actions will automatically build the application for **macOS** and upload the binaries to a new GitHub Release.
+
 If you only want a production build without packaging:
 
 ```bash
