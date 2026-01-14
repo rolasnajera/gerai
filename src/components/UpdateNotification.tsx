@@ -46,8 +46,18 @@ export default function UpdateNotification() {
         });
     }, []);
 
-    const handleInstallNow = () => {
-        window.electron.installUpdate();
+    const handleInstallNow = async () => {
+        try {
+            console.log('Installing update...');
+            const result = await window.electron.installUpdate();
+            if (!result.success) {
+                console.error('Failed to install update:', result.message);
+                alert('Failed to install update. Please try restarting the app.');
+            }
+        } catch (err) {
+            console.error('Error installing update:', err);
+            alert('Failed to install update. Please try restarting the app.');
+        }
     };
 
     const handleLater = () => {

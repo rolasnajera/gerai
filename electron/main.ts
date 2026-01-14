@@ -477,7 +477,15 @@ function setupIPC() {
 
     ipcMain.handle('install-update', async () => {
         try {
-            autoUpdater.quitAndInstall();
+            console.log('Install update requested by user');
+            // Use setImmediate to ensure the response is sent before quitting
+            setImmediate(() => {
+                console.log('Calling quitAndInstall...');
+                // quitAndInstall(isSilent, isForceRunAfter)
+                // isSilent: false = show normal quit behavior
+                // isForceRunAfter: true = restart app after install
+                autoUpdater.quitAndInstall(false, true);
+            });
             return { success: true };
         } catch (err: any) {
             console.error('Install update error:', err);
