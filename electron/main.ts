@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent } from 'electron';
+import { app, BrowserWindow, ipcMain, IpcMainInvokeEvent, shell } from 'electron';
 import path from 'path';
 import { run, get, all, connect, upsertContext } from './db';
 import { getOpenAIResponse, extractMemories } from './services/openai';
@@ -133,9 +133,14 @@ function initAutoUpdater() {
 
     autoUpdater.on('error', (err) => {
         console.error('Auto-updater error:', err);
+        const isSignatureError = err.message.includes('signature') ||
+            err.message.includes('validation') ||
+            err.message.includes('SQRLCodeSignatureErrorDomain');
+
         if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('update-error', {
                 message: err.message,
+                isSignatureError
             });
         }
     });
@@ -574,5 +579,9 @@ function setupIPC() {
             console.error('Install update error:', err);
             return { success: false, message: err.message };
         }
+    });
+
+    ipcMain.handle('open-releases-page', async () => {
+        shell.openExternal('https://github.com/rolasnajera/gerai/releases');
     });
 }

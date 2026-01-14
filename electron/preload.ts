@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('electron', {
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
     installUpdate: () => ipcRenderer.invoke('install-update'),
+    openReleasesPage: () => ipcRenderer.invoke('open-releases-page'),
     onUpdateChecking: (callback: () => void) => {
         ipcRenderer.on('update-checking', callback);
     },

@@ -10,10 +10,11 @@ interface Window {
         getAppVersion: () => Promise<string>;
         checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; message?: string }>;
         installUpdate: () => Promise<{ success: boolean; message?: string }>;
+        openReleasesPage: () => Promise<void>;
         onUpdateChecking: (callback: () => void) => void;
         onUpdateAvailable: (callback: (info: any) => void) => void;
         onUpdateDownloadProgress: (callback: (progress: any) => void) => void;
         onUpdateDownloaded: (callback: (info: any) => void) => void;
-        onUpdateError: (callback: (error: any) => void) => void;
+        onUpdateError: (callback: (error: { message: string, isSignatureError?: boolean }) => void) => void;
     };
 }
