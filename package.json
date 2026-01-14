@@ -1,6 +1,6 @@
 {
   "name": "gerai",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A modern, privacy-focused desktop AI chat application",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -11,7 +11,10 @@
     "build": "tsc && vite build && npm run electron:build",
     "dist": "npm run build && electron-builder",
     "preview": "vite preview",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "release:patch": "npm version patch -m 'chore: release v%s' && git push origin main --follow-tags",
+    "release:minor": "npm version minor -m 'chore: release v%s' && git push origin main --follow-tags",
+    "release:major": "npm version major -m 'chore: release v%s' && git push origin main --follow-tags"
   },
   "repository": {
     "type": "git",
