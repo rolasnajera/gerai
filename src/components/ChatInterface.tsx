@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { marked } from 'marked';
 import { AVAILABLE_MODELS } from '../constants/models';
 import { Message } from '../types';
+import MessageItem from './MessageItem';
 
 interface ChatInterfaceProps {
     currentConversationId: number | null;
@@ -152,21 +153,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         </div>
                     ) : (
                         messages.map((msg, index) => (
-                            <div key={index} className={`flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'} mb-6`}>
-                                <div className="flex items-center gap-2 mx-1">
-                                    <span className="text-xs text-gray-400 uppercase font-semibold">{msg.role}</span>
-                                    {msg.model && (
-                                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-medium">
-                                            {msg.model}
-                                        </span>
-                                    )}
-                                </div>
-                                <div
-                                    className={`${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700'} px-4 py-3 rounded-2xl max-w-[90%] prose dark:prose-invert`}
-                                    // marked.parse returns string | Promise<string>. In sync mode it's string.
-                                    dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }}
-                                />
-                            </div>
+                            <MessageItem key={index} msg={msg} />
                         ))
                     )}
 

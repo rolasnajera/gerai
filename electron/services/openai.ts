@@ -81,7 +81,7 @@ export async function getOpenAIResponse(
             });
 
             // Listen for completion - CORRECT event name
-            stream.on('response.completed', (event: any) => {
+            stream.on('response.completed', async (event: any) => {
                 console.log('Stream completed');
                 responseId = event?.response?.id;
 
@@ -98,7 +98,12 @@ export async function getOpenAIResponse(
                     textLength: accumulatedText.length,
                     preview: accumulatedText.substring(0, 200)
                 };
-                fs.appendFileSync(logPath, JSON.stringify(debugInfo, null, 2) + '\n');
+
+                try {
+                    await fs.promises.appendFile(logPath, JSON.stringify(debugInfo, null, 2) + '\n');
+                } catch (logError) {
+                    console.error('Failed to write debug log:', logError);
+                }
 
                 resolve({
                     output_text: accumulatedText,
@@ -107,15 +112,21 @@ export async function getOpenAIResponse(
             });
 
             // Listen for errors
-            stream.on('error', (error: any) => {
+            stream.on('error', async (error: any) => {
                 console.error('OpenAI Streaming Error:', error);
-                fs.appendFileSync(logPath, `STREAMING ERROR: ${error.message}\n${error.stack}\n`);
+                try {
+                    await fs.promises.appendFile(logPath, `STREAMING ERROR: ${error.message}\n${error.stack}\n`);
+                } catch (logError) {
+                    console.error('Failed to write error log:', logError);
+                }
                 reject(new Error('Failed to fetch streaming response from OpenAI'));
             });
 
         } catch (error: any) {
             console.error('OpenAI API Error:', error);
-            fs.appendFileSync(logPath, `ERROR: ${error.message}\n${error.stack}\n`);
+            fs.promises.appendFile(logPath, `ERROR: ${error.message}\n${error.stack}\n`).catch(logError => {
+                console.error('Failed to write error log:', logError);
+            });
             reject(new Error('Failed to fetch response from OpenAI'));
         }
     });
