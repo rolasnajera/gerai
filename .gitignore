@@ -91,3 +91,6 @@ release
 
 # JetBrains IDEs
 .idea
+
+# Prototyping
+.prototype
