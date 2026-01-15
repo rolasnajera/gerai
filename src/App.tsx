@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsModal from './components/SettingsModal';
@@ -145,7 +145,7 @@ function App() {
         };
     }, [currentRequestId, currentCid, messages.length, conversations.length]);
 
-    const loadCategories = async () => {
+    const loadCategories = React.useCallback(async () => {
         if (window.electron) {
             try {
                 const cats = await window.electron.invoke('get-categories');
@@ -154,9 +154,9 @@ function App() {
                 console.error("Failed to load categories", err);
             }
         }
-    };
+    }, []);
 
-    const loadSubcategories = async () => {
+    const loadSubcategories = React.useCallback(async () => {
         if (window.electron) {
             try {
                 const subs = await window.electron.invoke('get-subcategories');
@@ -165,9 +165,9 @@ function App() {
                 console.error("Failed to load subcategories", err);
             }
         }
-    };
+    }, []);
 
-    const loadConversations = async () => {
+    const loadConversations = React.useCallback(async () => {
         if (window.electron) {
             try {
                 const convs = await window.electron.invoke('get-conversations');
@@ -176,9 +176,9 @@ function App() {
                 console.error("Failed to load conversations", err);
             }
         }
-    };
+    }, []);
 
-    const loadMessages = async (cid: number) => {
+    const loadMessages = React.useCallback(async (cid: number) => {
         if (window.electron) {
             try {
                 const msgs = await window.electron.invoke('get-messages', cid);
@@ -187,9 +187,9 @@ function App() {
                 console.error("Failed to load messages", err);
             }
         }
-    };
+    }, []);
 
-    const handleSelectConversation = (cid: number) => {
+    const handleSelectConversation = React.useCallback((cid: number) => {
         setCurrentCid(cid);
         loadMessages(cid);
 
@@ -199,7 +199,7 @@ function App() {
             if (selected.model) setModel(selected.model);
             if (selected.system_prompt) setSystemPrompt(selected.system_prompt);
         }
-    };
+    }, [conversations, loadMessages]);
 
     const handleSetModel = (newModel: string) => {
         setModel(newModel);
@@ -211,7 +211,7 @@ function App() {
         }
     };
 
-    const handleCreateNewChat = async (subcategoryId?: number) => {
+    const handleCreateNewChat = React.useCallback(async (subcategoryId?: number) => {
         if (window.electron) {
             try {
                 // If in a subcategory, check if it has a default model
@@ -240,7 +240,7 @@ function App() {
                 console.error("Failed to create chat", err);
             }
         }
-    };
+    }, [model, subcategories, systemPrompt, loadConversations]);
 
     const handleSendMessage = async (text: string, selectedModel: string) => {
         if (!apiKey && selectedModel !== 'mock') {
@@ -318,7 +318,7 @@ function App() {
         }
     };
 
-    const handleDeleteChat = async (cid: number) => {
+    const handleDeleteChat = React.useCallback(async (cid: number) => {
         if (!confirm("Are you sure you want to delete this chat?")) return;
         if (window.electron) {
             await window.electron.invoke('delete-conversation', cid);
@@ -328,13 +328,13 @@ function App() {
             }
             loadConversations();
         }
-    };
+    }, [currentCid, loadConversations]);
 
-    const handleRenameChat = (cid: number, oldTitle: string) => {
+    const handleRenameChat = React.useCallback((cid: number, oldTitle: string) => {
         setRenameCid(cid);
         setRenameTitle(oldTitle);
         setRenameModalOpen(true);
-    };
+    }, []);
 
     const handleFinishRename = async (newTitle: string) => {
         if (renameCid && newTitle) {
@@ -351,14 +351,14 @@ function App() {
         setRenameCid(null);
     };
 
-    const handleMoveChat = (cid: number) => {
+    const handleMoveChat = React.useCallback((cid: number) => {
         const conv = conversations.find(c => c.id === cid);
         if (conv) {
             setMoveCid(cid);
             setMoveCurrentSubId(conv.subcategory_id ?? null);
             setMoveModalOpen(true);
         }
-    };
+    }, [conversations]);
 
     const handleConfirmMove = async (subcategoryId: number | null) => {
         if (moveCid && window.electron) {
@@ -374,14 +374,14 @@ function App() {
     };
 
     // Subcategory Handlers
-    const handleAddSubcategory = (category: Category) => {
+    const handleAddSubcategory = React.useCallback((category: Category) => {
         setSelectedCategory(category);
         setEditingSubcategory(null);
         setSubcategoryInitialData(undefined);
         setSubcategoryModalOpen(true);
-    };
+    }, []);
 
-    const handleEditSubcategory = async (subcategory: Subcategory) => {
+    const handleEditSubcategory = React.useCallback(async (subcategory: Subcategory) => {
         setEditingSubcategory(subcategory);
         setSelectedCategory(categories.find(c => c.id === subcategory.category_id) || null);
 
@@ -395,12 +395,12 @@ function App() {
             });
         }
         setSubcategoryModalOpen(true);
-    };
+    }, [categories]);
 
-    const handleDeleteSubcategoryRequest = (subcategory: Subcategory) => {
+    const handleDeleteSubcategoryRequest = React.useCallback((subcategory: Subcategory) => {
         setDeletingSubcategory(subcategory);
         setDeleteSubcategoryModalOpen(true);
-    };
+    }, []);
 
     const handleConfirmDeleteSubcategory = async () => {
         if (deletingSubcategory && window.electron) {
@@ -444,6 +444,12 @@ function App() {
         await window.electron.invoke('update-global-context', context);
     };
 
+    const handleOpenSettings = React.useCallback(() => setSettingsOpen(true), []);
+    const handleOpenMemory = React.useCallback((id: number | null | undefined) => {
+        setMemoryFilterId(id);
+        setMemoryOpen(true);
+    }, []);
+
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans">
             <Sidebar
@@ -456,14 +462,11 @@ function App() {
                 onDeleteChat={handleDeleteChat}
                 onRenameChat={handleRenameChat}
                 onMoveChat={handleMoveChat}
-                onOpenSettings={() => setSettingsOpen(true)}
+                onOpenSettings={handleOpenSettings}
                 onAddSubcategory={handleAddSubcategory}
                 onEditSubcategory={handleEditSubcategory}
                 onDeleteSubcategory={handleDeleteSubcategoryRequest}
-                onOpenMemory={(id) => {
-                    setMemoryFilterId(id);
-                    setMemoryOpen(true);
-                }}
+                onOpenMemory={handleOpenMemory}
             />
 
             <ChatInterface
