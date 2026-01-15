@@ -20,6 +20,7 @@
 *   **Language/Build**: [TypeScript](https://www.typescriptlang.org/), [tsup](https://tsup.egoist.dev/)
 *   **Packaging**: [electron‑builder](https://www.electron.build/)
 *   **Database**: [SQLite](https://www.sqlite.org/index.html) (stored in Electron `app.getPath('userData')`)
+*   **Testing**: [Vitest](https://vitest.dev/) (Unit/Component), [Playwright](https://playwright.dev/) (E2E)
 
 ## 📦 Installation
 
@@ -76,6 +77,34 @@ To create a distributable application for your OS (macOS, Windows, Linux):
 npm run dist
 ```
 The packaged installers/binaries will be located in the `release/` folder.
+
+## 🧪 Testing
+
+The project uses **Vitest** for unit and component testing, and **Playwright** for end-to-end (E2E) integration testing.
+
+### Unit & Component Tests
+Unit tests are used for testing individual functions and React components. They are located alongside the source code with the `.test.ts` or `.test.tsx` extension.
+
+- **Run unit tests**:
+  ```bash
+  npm run test:unit
+  ```
+- **Run unit tests in watch mode**:
+  ```bash
+  npm run test:unit -- --watch
+  ```
+
+### End-to-End (Integration) Tests
+E2E tests ensure that the entire application works as expected by launching the Electron app and simulating user interactions. These tests are located in the `e2e/` directory.
+
+- **Run E2E tests**:
+  ```bash
+  npm run test:e2e
+  ```
+
+### Adding New Tests
+- **Unit Tests**: Create a file named `filename.test.ts` (for logic) or `ComponentName.test.tsx` (for React components) in the same directory as the file you are testing.
+- **E2E Tests**: Create a new `.spec.ts` file in the `e2e/` directory. See `e2e/example.spec.ts` for a reference implementation.
 
 ## 🚀 Releases & CI/CD
 
