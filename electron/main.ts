@@ -179,10 +179,17 @@ function setupIPC() {
             const subcategoryId = result.id;
 
             if (context && context.length > 0) {
-                for (const content of context) {
-                    if (content.trim()) {
-                        await run('INSERT INTO context (subcategory_id, content) VALUES (?, ?)', [subcategoryId, content]);
+                await run('BEGIN TRANSACTION');
+                try {
+                    for (const content of context) {
+                        if (content.trim()) {
+                            await run('INSERT INTO context (subcategory_id, content) VALUES (?, ?)', [subcategoryId, content]);
+                        }
                     }
+                    await run('COMMIT');
+                } catch (err) {
+                    await run('ROLLBACK');
+                    throw err;
                 }
             }
 
@@ -199,11 +206,18 @@ function setupIPC() {
 
             if (context) {
                 // Simplified sync: delete old context and insert new
-                await run('DELETE FROM context WHERE subcategory_id = ?', [id]);
-                for (const content of context) {
-                    if (content.trim()) {
-                        await run('INSERT INTO context (subcategory_id, content) VALUES (?, ?)', [id, content]);
+                await run('BEGIN TRANSACTION');
+                try {
+                    await run('DELETE FROM context WHERE subcategory_id = ?', [id]);
+                    for (const content of context) {
+                        if (content.trim()) {
+                            await run('INSERT INTO context (subcategory_id, content) VALUES (?, ?)', [id, content]);
+                        }
                     }
+                    await run('COMMIT');
+                } catch (err) {
+                    await run('ROLLBACK');
+                    throw err;
                 }
             }
             return true;
@@ -258,13 +272,20 @@ function setupIPC() {
 
     ipcMain.handle('update-global-context', async (_event: IpcMainInvokeEvent, context: string[]) => {
         try {
-            await run('DELETE FROM context WHERE subcategory_id IS NULL AND source = "manual"');
-            for (const content of context) {
-                if (content.trim()) {
-                    await run('INSERT INTO context (content, source, subcategory_id) VALUES (?, "manual", null)', [content]);
+            await run('BEGIN TRANSACTION');
+            try {
+                await run('DELETE FROM context WHERE subcategory_id IS NULL AND source = "manual"');
+                for (const content of context) {
+                    if (content.trim()) {
+                        await run('INSERT INTO context (content, source, subcategory_id) VALUES (?, "manual", null)', [content]);
+                    }
                 }
+                await run('COMMIT');
+                return true;
+            } catch (err) {
+                await run('ROLLBACK');
+                throw err;
             }
-            return true;
         } catch (err) {
             console.error(err);
             return false;
