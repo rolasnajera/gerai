@@ -4,6 +4,11 @@ import { AVAILABLE_MODELS } from '../constants/models';
 import { Message } from '../types';
 import MessageItem from './MessageItem';
 
+// Provider Icons
+import openaiIcon from '../assets/icons/openai.svg';
+import geminiIcon from '../assets/icons/gemini.svg';
+import ollamaIcon from '../assets/icons/ollama.svg';
+
 interface ChatInterfaceProps {
     currentConversationId: number | null;
     messages: Message[];
@@ -29,6 +34,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
     const [input, setInput] = useState('');
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+    const [modelMenuOpen, setModelMenuOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [activeProvider, setActiveProvider] = useState<'all' | 'openai' | 'gemini' | 'ollama' | 'mock'>('all');
+    const modelMenuRef = useRef<HTMLDivElement>(null);
 
     const isMac = window.electron?.platform === 'darwin';
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -77,6 +86,38 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         }
     }, [input]);
 
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
+                setModelMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredModels = AVAILABLE_MODELS.filter(m => {
+        const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesProvider = activeProvider === 'all' || m.provider === activeProvider;
+        return matchesSearch && matchesProvider;
+    });
+
+    const selectedModelData = AVAILABLE_MODELS.find(m => m.id === model) || AVAILABLE_MODELS[0];
+
+    const getProviderIcon = (provider?: string, className: string = "w-4 h-4") => {
+        switch (provider) {
+            case 'openai': return <img src={openaiIcon} className={className} alt="OpenAI" />;
+            case 'gemini': return <img src={geminiIcon} className={className} alt="Gemini" />;
+            case 'ollama': return <img src={ollamaIcon} className={className} alt="Ollama" />;
+            default: return (
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <circle cx="12" cy="12" r="4"></circle>
+                </svg>
+            );
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading || isStreaming) return;
@@ -106,30 +147,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
 
     return (
-        <main className="flex-1 flex flex-col h-full relative bg-white dark:bg-gray-900">
+        <main className="flex-1 flex flex-col h-full relative bg-white dark:bg-gray-900 overflow-hidden">
             {/* Header */}
-            <header className={`flex items-center justify-between px-6 bg-white dark:bg-gray-900 z-10 w-full border-b border-gray-100 dark:border-gray-800 drag ${isMac ? 'pt-10 h-24' : 'h-16'}`}>
-                <h2 className="font-bold text-lg text-gray-800 dark:text-gray-100">AI Chat Interface</h2>
+            <header className={`flex items-center justify-between px-6 bg-white dark:bg-gray-900/80 backdrop-blur-md z-10 w-full border-b border-gray-100 dark:border-gray-800 drag ${isMac ? 'pt-10 h-24' : 'h-16'}`}>
+                <div className="flex items-center gap-4">
+                    <h2 className="font-bold text-lg text-gray-800 dark:text-gray-100">AI Chat Interface</h2>
+                    {currentConversationId && (
+                        <>
+                            <div className="h-4 w-[1px] bg-gray-200 dark:bg-gray-700"></div>
+                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Thread #{currentConversationId}</span>
+                        </>
+                    )}
+                </div>
 
-                {/* Model Selector */}
-                <div className="relative no-drag">
-                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 py-1.5 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">Model:</span>
-                        <select
-                            value={model}
-                            onChange={(e) => setModel(e.target.value)}
-                            className="bg-transparent text-sm font-bold text-gray-900 dark:text-white focus:outline-none cursor-pointer appearance-none pr-4"
-                        >
-                            {AVAILABLE_MODELS.map((m) => (
-                                <option key={m.id} value={m.id}>
-                                    {m.name}
-                                </option>
-                            ))}
-                        </select>
-                        <svg className="absolute right-3 pointer-events-none text-gray-500" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M6 9l6 6 6-6" />
-                        </svg>
-                    </div>
+                <div className="flex items-center gap-3 no-drag">
+                    <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" /></svg>
+                    </button>
                 </div>
             </header>
 
@@ -210,45 +244,165 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
 
             {/* Input Area */}
-            <div className="absolute bottom-0 w-full bg-white dark:bg-gray-900 pb-8 pt-6 px-4 border-t border-transparent">
-                <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto w-full relative">
-                    <form onSubmit={handleSubmit} className="relative shadow-sm hover:shadow-md transition-shadow rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-                        <textarea
-                            ref={textareaRef}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            className="w-full min-h-[56px] p-4 pr-14 bg-transparent resize-y focus:outline-none text-base text-gray-700 dark:text-gray-200 placeholder-gray-400"
-                            placeholder="Type your message... (Shift+Enter for new line)"
-                            rows={1}
-                            required
-                        />
-                        {isStreaming ? (
+            <div className="p-8 pt-0 max-w-4xl mx-auto w-full relative">
+                {modelMenuOpen && (
+                    <div
+                        ref={modelMenuRef}
+                        className="absolute bottom-full left-8 mb-4 w-[580px] h-[480px] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-[32px] shadow-2xl z-50 flex overflow-hidden animate-in slide-in-from-bottom-4 duration-300"
+                    >
+                        {/* Sidebar */}
+                        <div className="w-16 flex flex-col items-center py-6 gap-5 border-r border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/50">
                             <button
-                                type="button"
-                                onClick={handleCancel}
-                                className="absolute right-2 bottom-2 p-1.5 bg-red-600 dark:bg-red-500 text-white rounded-lg hover:opacity-80 transition-opacity"
-                                title="Cancel"
+                                onClick={() => setActiveProvider('all')}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeProvider === 'all' ? 'bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-100 dark:ring-gray-800 text-blue-600' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="6" y="6" width="12" height="12"></rect>
-                                </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill={activeProvider === 'all' ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                             </button>
-                        ) : (
+                            <div className="w-8 h-[1px] bg-gray-200 dark:bg-gray-700 mx-auto"></div>
+
                             <button
-                                type="submit"
-                                disabled={isLoading || !input.trim()}
-                                className="absolute right-2 bottom-2 p-1.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg hover:opacity-80 transition-opacity disabled:opacity-50"
-                                title="Send"
+                                onClick={() => setActiveProvider('openai')}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeProvider === 'openai' ? 'bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-100 dark:ring-gray-800' : 'grayscale opacity-50 hover:opacity-100 hover:grayscale-0'}`}
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                                </svg>
+                                <img src={openaiIcon} className="w-6 h-6" alt="OpenAI" />
                             </button>
-                        )}
+
+                            <button
+                                onClick={() => setActiveProvider('gemini')}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeProvider === 'gemini' ? 'bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-100 dark:ring-gray-800' : 'grayscale opacity-50 hover:opacity-100 hover:grayscale-0'}`}
+                            >
+                                <img src={geminiIcon} className="w-6 h-6" alt="Gemini" />
+                            </button>
+
+                            <button
+                                onClick={() => setActiveProvider('ollama')}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeProvider === 'ollama' ? 'bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-100 dark:ring-gray-800' : 'grayscale opacity-50 hover:opacity-100 hover:grayscale-0'}`}
+                            >
+                                <img src={ollamaIcon} className="w-6 h-6" alt="Ollama" />
+                            </button>
+
+                            <button
+                                onClick={() => setActiveProvider('mock')}
+                                className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all ${activeProvider === 'mock' ? 'bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-100 dark:ring-gray-800 text-blue-600' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="15" x2="23" y2="15"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="15" x2="4" y2="15"></line></svg>
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 flex flex-col">
+                            <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                                <input
+                                    className="flex-1 bg-transparent border-none focus:ring-0 text-sm placeholder:text-gray-400 text-gray-800 dark:text-gray-100"
+                                    placeholder="Search models..."
+                                    type="text"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1">
+                                {filteredModels.map((m) => (
+                                    <div
+                                        key={m.id}
+                                        onClick={() => { setModel(m.id); setModelMenuOpen(false); }}
+                                        className={`group flex items-start gap-4 p-4 rounded-2xl cursor-pointer transition-colors ${m.id === model ? 'bg-gray-100/50 dark:bg-gray-800 ring-1 ring-gray-200 dark:ring-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'}`}
+                                    >
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-0.5">
+                                                <h4 className="font-semibold text-sm text-gray-800 dark:text-gray-100">{m.name}</h4>
+                                            </div>
+                                            <p className="text-[11px] text-gray-500 dark:text-gray-400 line-clamp-1">
+                                                {m.id === 'mock' ? 'Fast mock response for UI testing' : `${m.provider?.toUpperCase()} language model`}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {getProviderIcon(m.provider, "w-5 h-5 opacity-80 group-hover:opacity-100 transition-opacity")}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="relative group">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-[24px] blur opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
+                    <form
+                        onSubmit={handleSubmit}
+                        className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[20px] shadow-2xl shadow-gray-200/40 dark:shadow-none transition-all flex flex-col gap-1"
+                    >
+                        <div className="px-5 pt-5 pb-1">
+                            <textarea
+                                ref={textareaRef}
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                className="w-full bg-transparent border-none focus:ring-0 focus:outline-none text-gray-800 dark:text-gray-200 placeholder:text-gray-400 resize-none custom-scrollbar min-h-[44px] text-base leading-relaxed"
+                                placeholder="Type your message... (Shift+Enter for new line)"
+                                rows={1}
+                            />
+                        </div>
+
+                        <div className="flex items-center justify-between px-3 pb-3">
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setModelMenuOpen(!modelMenuOpen)}
+                                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700"
+                                >
+                                    {getProviderIcon(selectedModelData.provider, "w-4 h-4 grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 transition-all")}
+                                    <span>{selectedModelData.name}</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-400"><path d="m6 9 6 6 6-6" /></svg>
+                                </button>
+
+                                <div className="w-px h-4 bg-gray-200 dark:bg-gray-800 mx-1"></div>
+
+                                <button
+                                    type="button"
+                                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all cursor-default"
+                                    title="activation soon"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all cursor-default"
+                                    title="activation soon"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.51a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                                </button>
+                            </div>
+
+                            {isStreaming ? (
+                                <button
+                                    type="button"
+                                    onClick={handleCancel}
+                                    className="bg-red-500 hover:bg-red-600 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95"
+                                    title="Cancel"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="6" y="6" width="12" height="12"></rect>
+                                    </svg>
+                                </button>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={handleSubmit}
+                                    disabled={isLoading || !input.trim()}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed group-hover:shadow-blue-500/20"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="transform -translate-x-px translate-y-px"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                </button>
+                            )}
+                        </div>
                     </form>
                 </div>
+                <p className="text-center text-[10px] text-gray-400 mt-4 px-10">
+                    GERAI can make mistakes. Consider checking important information. By using this service, you agree to our
+                    <a className="underline hover:text-blue-500 transition-colors ml-1" href="#">Terms</a> and
+                    <a className="underline hover:text-blue-500 transition-colors ml-1" href="#">Privacy Policy</a>.
+                </p>
             </div>
         </main>
     );

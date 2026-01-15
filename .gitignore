@@ -92,5 +92,8 @@ release
 # JetBrains IDEs
 .idea
 
+# Prototyping
+.prototype
+
 # Test results
 test-results/
