@@ -1,6 +1,6 @@
 {
   "name": "gerai",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "A modern, privacy-focused desktop AI chat application",
   "main": "dist-electron/main.js",
   "scripts": {
