@@ -15,6 +15,7 @@ function createWindow() {
         width: 1280,
         height: 850,
         titleBarStyle: 'hiddenInset', // Mac-like nice title bar
+        icon: path.join(__dirname, '../build/icon.png'),
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'), // tsup outputs to the same dir
             nodeIntegration: false,

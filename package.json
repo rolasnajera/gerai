@@ -36,19 +36,23 @@
       "dist-electron/**/*",
       "services/**/*",
       "db.js",
-      "package.json"
+      "package.json",
+      "build/icon.png"
     ],
     "mac": {
       "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
       "target": [
         "dmg",
         "zip"
       ]
     },
     "win": {
+      "icon": "build/icon.png",
       "target": "nsis"
     },
     "linux": {
+      "icon": "build/icon.png",
       "target": "AppImage"
     }
   },
