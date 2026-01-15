@@ -246,6 +246,30 @@ function setupIPC() {
         }
     });
 
+    ipcMain.handle('get-global-context', async () => {
+        try {
+            return await all('SELECT * FROM context WHERE subcategory_id IS NULL AND source = "manual" ORDER BY created_at ASC');
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    });
+
+    ipcMain.handle('update-global-context', async (_event: IpcMainInvokeEvent, context: string[]) => {
+        try {
+            await run('DELETE FROM context WHERE subcategory_id IS NULL AND source = "manual"');
+            for (const content of context) {
+                if (content.trim()) {
+                    await run('INSERT INTO context (content, source, subcategory_id) VALUES (?, "manual", null)', [content]);
+                }
+            }
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
     ipcMain.handle('update-context-item', async (_event: IpcMainInvokeEvent, { id, content, subcategoryId }: { id: number, content: string, subcategoryId?: number | null }) => {
         try {
             await run('UPDATE context SET content = ?, subcategory_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [content, subcategoryId === undefined ? null : subcategoryId, id]);
@@ -494,7 +518,8 @@ function setupIPC() {
             }
 
             // Extract memory/facts after a successful response
-            if (!isAborted && aiContent && apiKey && messageModel !== 'mock') {
+            // ONLY if it's NOT a global chat (incognito mode - subcategoryId is present)
+            if (!isAborted && aiContent && apiKey && messageModel !== 'mock' && subcategoryId) {
                 const currentCid = cid;
                 const currentSubcategoryId = subcategoryId;
                 const userMsg = message;

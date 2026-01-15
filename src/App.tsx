@@ -439,6 +439,11 @@ function App() {
         await loadSubcategories();
     };
 
+    const handleSaveGlobalContext = async (context: string[]) => {
+        if (!window.electron) return;
+        await window.electron.invoke('update-global-context', context);
+    };
+
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans">
             <Sidebar
@@ -480,6 +485,7 @@ function App() {
                 setApiKey={setApiKey}
                 systemPrompt={systemPrompt}
                 setSystemPrompt={setSystemPrompt}
+                onSaveGlobalContext={handleSaveGlobalContext}
             />
 
             <RenameModal

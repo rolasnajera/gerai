@@ -7,21 +7,44 @@ interface SettingsModalProps {
     setApiKey: (key: string) => void;
     systemPrompt: string;
     setSystemPrompt: (prompt: string) => void;
+    onSaveGlobalContext: (context: string[]) => Promise<void>;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, setApiKey, systemPrompt, setSystemPrompt }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, setApiKey, systemPrompt, setSystemPrompt, onSaveGlobalContext }) => {
     const [localKey, setLocalKey] = useState(apiKey);
     const [localPrompt, setLocalPrompt] = useState(systemPrompt);
+    const [contextRows, setContextRows] = useState<string[]>(['']);
 
     useEffect(() => {
         setLocalKey(apiKey);
         setLocalPrompt(systemPrompt);
+        if (isOpen && window.electron) {
+            window.electron.invoke('get-global-context').then((data: any[]) => {
+                setContextRows(data.length > 0 ? data.map(d => d.content) : ['']);
+            });
+        }
     }, [apiKey, systemPrompt, isOpen]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setApiKey(localKey);
         setSystemPrompt(localPrompt);
+        await onSaveGlobalContext(contextRows.filter(r => r.trim() !== ''));
         onClose();
+    };
+
+    const handleAddContext = () => {
+        setContextRows([...contextRows, '']);
+    };
+
+    const handleRemoveContext = (index: number) => {
+        const newRows = contextRows.filter((_, i) => i !== index);
+        setContextRows(newRows.length > 0 ? newRows : ['']);
+    };
+
+    const handleContextChange = (index: number, value: string) => {
+        const newRows = [...contextRows];
+        newRows[index] = value;
+        setContextRows(newRows);
     };
 
     if (!isOpen) return null;
@@ -52,8 +75,43 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, 
                             value={localPrompt}
                             onChange={(e) => setLocalPrompt(e.target.value)}
                             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-sm dark:text-white"
-                            rows={3}
+                            rows={2}
                         />
+                    </div>
+
+                    {/* Global Memory / Context */}
+                    <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+                        <div className="flex items-center justify-between">
+                            <label className="text-sm font-bold text-gray-700 dark:text-gray-200">Global Memory Bank</label>
+                            <button
+                                onClick={handleAddContext}
+                                className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                Add Fact
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 -mt-2">Facts here are shared across ALL chats. AI will not automatically add things here; it's manual-only.</p>
+
+                        <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
+                            {contextRows.map((row, index) => (
+                                <div key={index} className="relative group">
+                                    <textarea
+                                        placeholder={`Enter a global fact...`}
+                                        value={row}
+                                        onChange={(e) => handleContextChange(index, e.target.value)}
+                                        rows={2}
+                                        className="w-full p-2 pr-8 rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent text-sm dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
+                                    />
+                                    <button
+                                        onClick={() => handleRemoveContext(index)}
+                                        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
