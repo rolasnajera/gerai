@@ -22,6 +22,8 @@ export default function UpdateNotification() {
     const [hasSignatureError, setHasSignatureError] = useState(false);
 
     useEffect(() => {
+        if (!window.electron) return;
+
         // Listen for update events
         window.electron.onUpdateAvailable((info: UpdateInfo) => {
             console.log('Update available:', info);
