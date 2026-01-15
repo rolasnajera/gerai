@@ -26,8 +26,8 @@ This section guides you through submitting an enhancement suggestion.
 ### Pull Requests
 
 1.  Fork the repo and create your branch from `main`.
-2.  If you've added code that should be tested, add tests.
-3.  Ensure the test suite passes.
+2.  If you've added code that should be tested, add tests (see the Testing section in `README.md` for details).
+3.  Ensure the test suite passes by running `npm test` (for unit tests) and `npm run test:e2e` (for end-to-end tests).
 4.  Make sure your code lints.
 5.  Issue that pull request!
 

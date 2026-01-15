@@ -94,3 +94,6 @@ release
 
 # Prototyping
 .prototype
+
+# Test results
+test-results/
