@@ -212,7 +212,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div
                 ref={containerRef}
                 onScroll={handleScroll}
-                className="flex-1 overflow-y-auto pt-10 pb-32 px-4 sm:px-8 xl:px-20 scroll-smooth relative"
+                className="flex-1 overflow-y-auto pt-10 pb-10 px-4 sm:px-8 xl:px-20 scroll-smooth relative"
                 id="chat-container"
             >
                 <div className="max-w-3xl xl:max-w-4xl 2xl:max-w-5xl mx-auto w-full">
@@ -236,9 +236,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     {isStreaming && streamingMessage && (
                         <div className="flex flex-col gap-1 items-start mb-6">
                             <div className="text-xs text-gray-400 uppercase font-semibold mx-1">assistant</div>
-                            <div className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-2 border-blue-400 dark:border-blue-600 px-4 py-3 rounded-2xl max-w-[90%] prose dark:prose-invert animate-pulse-border"
+                            <div className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-2 border-blue-400 dark:border-blue-600 px-4 py-3 rounded-2xl max-w-[90%] prose dark:prose-invert animate-pulse-border shadow-sm"
                                 dangerouslySetInnerHTML={{ __html: marked.parse(streamingMessage) as string }}
                             />
+                            <div className="flex items-center gap-2 mt-2 px-1 opacity-50 cursor-not-allowed">
+                                <div className="p-1.5 text-gray-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+                                </div>
+                            </div>
                         </div>
                     )}
 
@@ -285,7 +290,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             </div>
 
             {/* Input Area */}
-            <div className="p-8 pt-0 max-w-4xl mx-auto w-full relative">
+            <div className="p-6 pt-0 max-w-4xl mx-auto w-full relative">
                 {modelMenuOpen && (
                     <div
                         ref={modelMenuRef}
@@ -439,7 +444,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                         </div>
                     </form>
                 </div>
-                <p className="text-center text-[10px] text-gray-400 mt-4 px-10">
+                <p className="text-center text-[10px] text-gray-400 mt-2 px-10">
                     GERAI can make mistakes. Consider checking important information. By using this service, you agree to our
                     <a className="underline hover:text-blue-500 transition-colors ml-1" href="#">Terms</a> and
                     <a className="underline hover:text-blue-500 transition-colors ml-1" href="#">Privacy Policy</a>.
