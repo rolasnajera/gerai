@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('electron', {
     checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
     installUpdate: () => ipcRenderer.invoke('install-update'),
     openReleasesPage: () => ipcRenderer.invoke('open-releases-page'),
+    searchConversations: (query: string) => ipcRenderer.invoke('search-conversations', query),
     onUpdateChecking: (callback: () => void) => {
         ipcRenderer.on('update-checking', callback);
     },

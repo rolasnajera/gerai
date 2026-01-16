@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Conversation, Category, Subcategory } from '../types';
+import { Conversation, Category, Subcategory, SearchResult } from '../types';
 import logo from '../assets/logo.svg';
 
 interface SidebarProps {
@@ -17,6 +17,7 @@ interface SidebarProps {
     onEditSubcategory: (subcategory: Subcategory) => void;
     onDeleteSubcategory: (subcategory: Subcategory) => void;
     onOpenMemory: (subcategoryId?: number | null) => void;
+    onShowSearchResults: (query: string) => void;
     isDarkMode: boolean;
     onToggleDarkMode: () => void;
 }
@@ -36,12 +37,56 @@ const Sidebar: React.FC<SidebarProps> = ({
     onEditSubcategory,
     onDeleteSubcategory,
     onOpenMemory,
+    onShowSearchResults,
     isDarkMode,
     onToggleDarkMode
 }) => {
     const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({ 1: true });
     const [expandedSubcategories, setExpandedSubcategories] = useState<Record<number, boolean>>({});
     const [appVersion, setAppVersion] = useState<string>('');
+
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [recentSearches, setRecentSearches] = useState<string[]>([]);
+
+    React.useEffect(() => {
+        const saved = localStorage.getItem('recentSearches');
+        if (saved) {
+            try {
+                setRecentSearches(JSON.parse(saved));
+            } catch (e) {
+                console.error('Failed to load recent searches', e);
+            }
+        }
+    }, []);
+
+    const saveRecentSearches = (searches: string[]) => {
+        setRecentSearches(searches);
+        localStorage.setItem('recentSearches', JSON.stringify(searches));
+    };
+
+    const addToRecent = (query: string) => {
+        if (!query.trim()) return;
+        const filtered = recentSearches.filter(s => s !== query.trim());
+        const newRecent = [query.trim(), ...filtered].slice(0, 5);
+        saveRecentSearches(newRecent);
+    };
+
+    const clearRecent = () => {
+        saveRecentSearches([]);
+    };
+
+    const handleSearch = async (query: string) => {
+        setSearchQuery(query);
+        if (query.trim()) {
+            const results = await window.electron.searchConversations(query);
+            setSearchResults(results);
+        } else {
+            setSearchResults([]);
+        }
+    };
 
     React.useEffect(() => {
         const fetchVersion = async () => {
@@ -103,8 +148,121 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <input
                             type="text"
                             placeholder="Search threads..."
+                            value={searchQuery}
+                            onChange={(e) => handleSearch(e.target.value)}
+                            onFocus={() => setIsSearchFocused(true)}
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && searchQuery.trim()) {
+                                    addToRecent(searchQuery);
+                                }
+                            }}
                             className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all placeholder:text-gray-400 shadow-sm"
                         />
+
+                        {/* Search Results Dropdown */}
+                        {isSearchFocused && (searchQuery.trim() || recentSearches.length > 0) && (
+                            <div className="absolute top-[calc(100%+8px)] left-0 right-[-48px] bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                <div className="p-4 max-h-[480px] overflow-y-auto custom-scrollbar">
+                                    {/* Recent Searches */}
+                                    {!searchQuery.trim() && recentSearches.length > 0 && (
+                                        <div className="mb-6">
+                                            <div className="flex items-center justify-between mb-3 px-1">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Recent Searches</span>
+                                                <button
+                                                    onMouseDown={(e) => e.preventDefault()}
+                                                    onClick={(e) => { e.stopPropagation(); clearRecent(); }}
+                                                    className="text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors"
+                                                >
+                                                    Clear
+                                                </button>
+                                            </div>
+                                            <div className="space-y-1">
+                                                {recentSearches.map((s, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onMouseDown={(e) => e.preventDefault()}
+                                                        onClick={() => {
+                                                            handleSearch(s);
+                                                            addToRecent(s);
+                                                        }}
+                                                        className="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-900 rounded-xl transition-colors group text-left"
+                                                    >
+                                                        <svg className="w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 transition-colors" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                            <circle cx="12" cy="12" r="10"></circle>
+                                                            <polyline points="12 6 12 12 16 14"></polyline>
+                                                        </svg>
+                                                        <span className="text-sm text-gray-600 dark:text-gray-300 font-medium">{s}</span>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Search Results */}
+                                    {searchQuery.trim() && (
+                                        <div>
+                                            <div className="mb-3 px-1">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Search Results</span>
+                                            </div>
+                                            {searchResults.length > 0 ? (
+                                                <div className="space-y-1">
+                                                    {searchResults.map((result) => (
+                                                        <button
+                                                            key={result.id}
+                                                            onClick={() => {
+                                                                onSelectConversation(result.id);
+                                                                addToRecent(searchQuery);
+                                                                setIsSearchFocused(false);
+                                                            }}
+                                                            className="w-full p-3 hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 rounded-xl transition-all group text-left border border-transparent hover:border-indigo-100 dark:hover:border-indigo-500/20"
+                                                        >
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <span className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors truncate">
+                                                                    {result.title}
+                                                                </span>
+                                                                {result.category_name && (
+                                                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter ml-2 shrink-0">
+                                                                        {result.category_name} {result.subcategory_name ? `> ${result.subcategory_name}` : ''}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {result.snippet && (
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
+                                                                    "{result.snippet.split(new RegExp(`(${searchQuery})`, 'gi')).map((part, i) =>
+                                                                        part.toLowerCase() === searchQuery.toLowerCase() ? (
+                                                                            <span key={i} className="bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold rounded-sm px-0.5">{part}</span>
+                                                                        ) : part
+                                                                    )}"
+                                                                </p>
+                                                            )}
+                                                        </button>
+                                                    ))}
+                                                    <button
+                                                        onMouseDown={(e) => e.preventDefault()}
+                                                        onClick={() => onShowSearchResults(searchQuery)}
+                                                        className="w-full py-3 mt-2 text-center text-xs font-bold text-gray-400 hover:text-indigo-500 transition-colors flex items-center justify-center gap-2"
+                                                    >
+                                                        See all {searchResults.length} results
+                                                        <svg className="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="py-8 text-center">
+                                                    <div className="w-12 h-12 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-3">
+                                                        <svg className="w-6 h-6 text-gray-300" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                            <circle cx="11" cy="11" r="8"></circle>
+                                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                                        </svg>
+                                                    </div>
+                                                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No results found for "{searchQuery}"</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <button
                         onClick={() => onCreateNewChat()}

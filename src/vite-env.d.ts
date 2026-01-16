@@ -11,6 +11,7 @@ interface Window {
         checkForUpdates: () => Promise<{ success: boolean; updateInfo?: any; message?: string }>;
         installUpdate: () => Promise<{ success: boolean; message?: string }>;
         openReleasesPage: () => Promise<void>;
+        searchConversations: (query: string) => Promise<any[]>;
         onUpdateChecking: (callback: () => void) => void;
         onUpdateAvailable: (callback: (info: any) => void) => void;
         onUpdateDownloadProgress: (callback: (progress: any) => void) => void;

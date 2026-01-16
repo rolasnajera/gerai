@@ -7,6 +7,7 @@ import MoveChatModal from './components/MoveChatModal';
 import SubcategoryModal from './components/SubcategoryModal';
 import DeleteSubcategoryModal from './components/DeleteSubcategoryModal';
 import MemoryModal from './components/MemoryModal';
+import SearchModal from './components/SearchModal';
 import UpdateNotification from './components/UpdateNotification';
 import { Message, Conversation, Category, Subcategory } from './types';
 
@@ -22,6 +23,8 @@ function App() {
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [memoryOpen, setMemoryOpen] = useState(false);
     const [memoryFilterId, setMemoryFilterId] = useState<number | null | undefined>(undefined);
+    const [searchModalOpen, setSearchModalOpen] = useState(false);
+    const [currentSearchQuery, setCurrentSearchQuery] = useState('');
 
     // Streaming state
     const [isStreaming, setIsStreaming] = useState(false);
@@ -221,7 +224,7 @@ function App() {
     const handleSetModel = (newModel: string) => {
         setModel(newModel);
 
-        // If we are in a general chat (or no chat), persist as general preference
+        // If we are in a general chat (or no chat), persist as the general preference
         const currentConv = conversations.find(c => c.id === currentCid);
         if (!currentCid || (currentConv && !currentConv.subcategory_id)) {
             localStorage.setItem('general_model', newModel);
@@ -467,6 +470,11 @@ function App() {
         setMemoryOpen(true);
     }, []);
 
+    const handleShowSearchResults = React.useCallback((query: string) => {
+        setCurrentSearchQuery(query);
+        setSearchModalOpen(true);
+    }, []);
+
     return (
         <div className="flex h-screen w-screen overflow-hidden bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans">
             <Sidebar
@@ -486,6 +494,7 @@ function App() {
                 onEditSubcategory={handleEditSubcategory}
                 onDeleteSubcategory={handleDeleteSubcategoryRequest}
                 onOpenMemory={handleOpenMemory}
+                onShowSearchResults={handleShowSearchResults}
             />
 
             <ChatInterface
@@ -559,6 +568,13 @@ function App() {
                 onClose={() => setMemoryOpen(false)}
                 subcategories={subcategories}
                 initialSubcategoryId={memoryFilterId}
+            />
+
+            <SearchModal
+                isOpen={searchModalOpen}
+                onClose={() => setSearchModalOpen(false)}
+                query={currentSearchQuery}
+                onSelectConversation={handleSelectConversation}
             />
 
             <UpdateNotification />

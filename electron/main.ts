@@ -599,6 +599,31 @@ function setupIPC() {
         }
     });
 
+    ipcMain.handle('search-conversations', async (_event: IpcMainInvokeEvent, query: string) => {
+        try {
+            if (!query || query.trim().length === 0) return [];
+            const searchTerm = `%${query}%`;
+            return await all(`
+                SELECT 
+                    c.id, 
+                    c.title, 
+                    c.subcategory_id,
+                    s.name as subcategory_name,
+                    cat.name as category_name,
+                    (SELECT content FROM messages WHERE conversation_id = c.id AND content LIKE ? LIMIT 1) as snippet
+                FROM conversations c
+                LEFT JOIN subcategories s ON c.subcategory_id = s.id
+                LEFT JOIN categories cat ON s.category_id = cat.id
+                WHERE c.title LIKE ? OR EXISTS (SELECT 1 FROM messages WHERE conversation_id = c.id AND content LIKE ?)
+                ORDER BY c.created_at DESC
+                LIMIT 100
+            `, [searchTerm, searchTerm, searchTerm]);
+        } catch (err) {
+            console.error('Search error:', err);
+            return [];
+        }
+    });
+
     // Auto-update IPC handlers
     ipcMain.handle('check-for-updates', async () => {
         try {

@@ -52,3 +52,12 @@ export interface Context {
 export interface ElectronAPI {
     invoke<T = any>(channel: string, data?: any): Promise<T>;
 }
+
+export interface SearchResult {
+    id: number;
+    title: string;
+    subcategory_id?: number | null;
+    subcategory_name?: string;
+    category_name?: string;
+    snippet?: string;
+}
