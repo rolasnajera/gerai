@@ -1,5 +1,4 @@
 import { test, expect, _electron as electron } from '@playwright/test';
-import path from 'path';
 
 test('app launches', async () => {
   // Use the local electron executable and point to the main script
