@@ -57,13 +57,21 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         // Only scroll automatically when a new message is added (usually by the user)
         // or when the component first loads with messages.
         const messageCountIncreased = messages.length > lastMessageCountRef.current;
-        lastMessageCountRef.current = messages.length;
 
         if (messageCountIncreased) {
-            scrollToBottom("auto");
-            setShouldAutoScroll(true);
+            const lastMessage = messages[messages.length - 1];
+            // If user sent a message, always scroll to bottom.
+            // If assistant finished streaming, only scroll if we were already at the bottom (auto-scroll enabled).
+            const isUserMessage = lastMessage?.role === 'user';
+
+            if (isUserMessage || shouldAutoScroll) {
+                scrollToBottom("auto");
+                setShouldAutoScroll(true);
+            }
         }
-    }, [messages]);
+
+        lastMessageCountRef.current = messages.length;
+    }, [messages, shouldAutoScroll]);
 
     useEffect(() => {
         // If loading starts (new request), ensure we scroll to start seeing the response
