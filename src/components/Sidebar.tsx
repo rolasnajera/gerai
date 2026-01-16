@@ -332,15 +332,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                 </div>
 
-                <div className="flex items-center gap-3 px-2">
-                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center overflow-hidden border border-orange-200">
-                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Alex" alt="Avatar" className="w-full h-full object-cover" />
+                <button className="w-full flex items-center gap-3 p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl transition-all shadow-lg shadow-indigo-200 dark:shadow-none group no-drag">
+                    <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+                            <circle cx="19" cy="5" r="2" />
+                            <circle cx="5" cy="19" r="2" />
+                        </svg>
                     </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-gray-900 dark:text-white truncate">Rolas Najera</div>
-                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">PRO PLAN</div>
+                    <div className="flex-1 text-left min-w-0">
+                        <div className="text-[11px] font-black tracking-wider uppercase leading-none mb-1">SUPER GERAI</div>
+                        <div className="text-[10px] text-indigo-100 font-medium truncate leading-none">Unlock advanced capabilities</div>
                     </div>
-                </div>
+                </button>
             </div>
         </aside>
     );
