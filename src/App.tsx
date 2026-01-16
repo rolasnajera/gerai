@@ -55,9 +55,26 @@ function App() {
     const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null);
     const [subcategoryInitialData, setSubcategoryInitialData] = useState<{ name: string; description: string; context: string[]; default_model?: string } | undefined>(undefined);
 
-    // Delete Subcategory Modal State
     const [deleteSubcategoryModalOpen, setDeleteSubcategoryModalOpen] = useState(false);
     const [deletingSubcategory, setDeletingSubcategory] = useState<Subcategory | null>(null);
+
+    // Theme state
+    const [isDarkMode, setIsDarkMode] = useState(() => {
+        const savedTheme = localStorage.getItem('theme');
+        return savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    });
+
+    useEffect(() => {
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+        }
+    }, [isDarkMode]);
+
+    const toggleDarkMode = () => setIsDarkMode(prev => !prev);
 
     // Load Data on Mount
     useEffect(() => {
@@ -457,6 +474,8 @@ function App() {
                 subcategories={subcategories}
                 conversations={conversations}
                 currentCid={currentCid}
+                isDarkMode={isDarkMode}
+                onToggleDarkMode={toggleDarkMode}
                 onSelectConversation={handleSelectConversation}
                 onCreateNewChat={handleCreateNewChat}
                 onDeleteChat={handleDeleteChat}
