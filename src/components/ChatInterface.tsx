@@ -14,6 +14,9 @@ interface ChatInterfaceProps {
     streamingMessage: string;
     model: string;
     setModel: (model: string) => void;
+    title?: string;
+    categoryName?: string;
+    subcategoryName?: string;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
@@ -25,7 +28,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     isStreaming,
     streamingMessage,
     model,
-    setModel
+    setModel,
+    title,
+    categoryName,
+    subcategoryName
 }) => {
     const [input, setInput] = useState('');
     const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
@@ -60,8 +66,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         if (messageCountIncreased) {
             const lastMessage = messages[messages.length - 1];
-            // If user sent a message, always scroll to bottom.
-            // If assistant finished streaming, only scroll if we were already at the bottom (auto-scroll enabled).
+            // If the user sent a message, always scroll to the bottom.
+            // If the assistant finished streaming, only scroll if we were already at the bottom (auto-scroll enabled).
             const isUserMessage = lastMessage?.role === 'user';
 
             if (isUserMessage || shouldAutoScroll) {
@@ -171,7 +177,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (!currentConversationId && messages.length === 0) {
         // Empty state for "No chat selected" or "Start new chat"
         // But typically, "New Chat" creates an ID, or we show an empty state.
-        // If messages are empty and we have an ID, it's a fresh chat.
+        // If messages are empty, and we have an ID, it's a fresh chat.
         // If we don't have an ID, it's the welcome screen.
     }
 
@@ -180,13 +186,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {/* Header */}
             <header className={`flex items-center justify-between px-6 bg-white dark:bg-gray-900/80 backdrop-blur-md z-10 w-full border-b border-gray-100 dark:border-gray-800 drag ${isMac ? 'pt-10 h-24' : 'h-16'}`}>
                 <div className="flex items-center gap-4">
-                    <h2 className="font-bold text-lg text-gray-800 dark:text-gray-100">AI Chat Interface</h2>
-                    {currentConversationId && (
-                        <>
-                            <div className="h-4 w-[1px] bg-gray-200 dark:bg-gray-700"></div>
-                            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Thread #{currentConversationId}</span>
-                        </>
-                    )}
+                    <h2 className="font-bold text-lg text-gray-800 dark:text-gray-100 truncate max-w-[300px]" title={title || "New Chat"}>
+                        {title || "New Chat"}
+                    </h2>
+                    <div className="h-4 w-[1px] bg-gray-200 dark:bg-gray-700"></div>
+                    <div className="flex items-center">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                            {categoryName ? (
+                                <>{categoryName} {'>'} {subcategoryName}</>
+                            ) : (
+                                "general conversation"
+                            )}
+                        </span>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-3 no-drag">

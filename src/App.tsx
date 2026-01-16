@@ -134,12 +134,12 @@ function App() {
                 setCurrentRequestId(null);
                 setIsLoading(false);
 
-                // Ignore if aborted by user
+                // Ignore if aborted by the user
                 if (data.error && data.error.includes('Aborted by user')) {
                     return;
                 }
 
-                // Add error message
+                // Add an error message
                 const errorMsg: Message = {
                     id: Date.now(),
                     conversation_id: currentCid || 0,
@@ -286,7 +286,7 @@ function App() {
         if (window.electron) {
             try {
                 const response = await window.electron.invoke('send-message', {
-                    requestId, // Pass ID to backend
+                    requestId, // Pass ID to the backend
                     conversationId: currentCid,
                     message: text,
                     model: selectedModel,
@@ -498,6 +498,19 @@ function App() {
                 streamingMessage={streamingMessage}
                 model={model}
                 setModel={handleSetModel}
+                title={conversations.find(c => c.id === currentCid)?.title}
+                categoryName={(() => {
+                    const conv = conversations.find(c => c.id === currentCid);
+                    if (!conv?.subcategory_id) return undefined;
+                    const sub = subcategories.find(s => s.id === conv.subcategory_id);
+                    if (!sub) return undefined;
+                    return categories.find(cat => cat.id === sub.category_id)?.name;
+                })()}
+                subcategoryName={(() => {
+                    const conv = conversations.find(c => c.id === currentCid);
+                    if (!conv?.subcategory_id) return undefined;
+                    return subcategories.find(s => s.id === conv.subcategory_id)?.name;
+                })()}
             />
 
             <SettingsModal
