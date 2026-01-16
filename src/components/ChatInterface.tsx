@@ -235,7 +235,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     {/* Streaming Message */}
                     {isStreaming && streamingMessage && (
                         <div className="flex flex-col gap-1 items-start mb-6">
-                            <div className="text-xs text-gray-400 uppercase font-semibold mx-1">assistant</div>
+                            <div className="flex items-center justify-center w-6 h-6 rounded-lg shadow-sm bg-[#232d3d] text-white mx-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /><circle cx="19" cy="5" r="2" /><circle cx="5" cy="19" r="2" /></svg>
+                            </div>
                             <div className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border-2 border-blue-400 dark:border-blue-600 px-4 py-3 rounded-2xl max-w-[90%] prose dark:prose-invert animate-pulse-border shadow-sm"
                                 dangerouslySetInnerHTML={{ __html: marked.parse(streamingMessage) as string }}
                             />
@@ -249,7 +251,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                     {isLoading && !streamingMessage && (
                         <div className="flex flex-col gap-1 items-start mb-6 transition-all duration-500 ease-in-out animate-in fade-in slide-in-from-bottom-2">
-                            <div className="text-xs text-gray-400 uppercase font-semibold mx-1">assistant</div>
+                            <div className="flex items-center justify-center w-6 h-6 rounded-lg shadow-sm bg-[#232d3d] text-white mx-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" /><circle cx="19" cy="5" r="2" /><circle cx="5" cy="19" r="2" /></svg>
+                            </div>
                             <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 px-5 py-3 rounded-2xl shadow-sm">
                                 <div className="relative flex items-center justify-center w-5 h-5">
                                     <div className="absolute inset-0 bg-blue-500/30 rounded-full animate-pulse-glow" />
