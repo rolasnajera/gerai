@@ -105,7 +105,7 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
                                 onChange={(e) => setDefaultModel(e.target.value)}
                                 className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none transition-all appearance-none"
                             >
-                                <option value="">Global Default</option>
+                                <option value="">General Default</option>
                                 {AVAILABLE_MODELS.map((m) => (
                                     <option key={m.id} value={m.id}>
                                         {m.name}

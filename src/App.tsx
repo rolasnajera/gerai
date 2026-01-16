@@ -32,7 +32,7 @@ function App() {
     const [apiKey, setApiKey] = useState(localStorage.getItem('openai_key') || '');
     const [systemPrompt, setSystemPrompt] = useState(localStorage.getItem('system_prompt') || 'You are a helpful assistant.');
     const [model, setModel] = useState(() => {
-        const saved = localStorage.getItem('global_model');
+        const saved = localStorage.getItem('general_model');
         if (saved && AVAILABLE_MODELS.some((m: Model) => m.id === saved)) {
             return saved;
         }
@@ -221,10 +221,10 @@ function App() {
     const handleSetModel = (newModel: string) => {
         setModel(newModel);
 
-        // If we are in a global chat (or no chat), persist as global preference
+        // If we are in a general chat (or no chat), persist as general preference
         const currentConv = conversations.find(c => c.id === currentCid);
         if (!currentCid || (currentConv && !currentConv.subcategory_id)) {
-            localStorage.setItem('global_model', newModel);
+            localStorage.setItem('general_model', newModel);
         }
     };
 
@@ -240,8 +240,8 @@ function App() {
                         setModel(targetModel); // Sync UI
                     }
                 } else {
-                    // Global chat: use persisted preference
-                    targetModel = localStorage.getItem('global_model') || DEFAULT_MODEL;
+                    // General chat: use persisted preference
+                    targetModel = localStorage.getItem('general_model') || DEFAULT_MODEL;
                     setModel(targetModel);
                 }
 
@@ -456,9 +456,9 @@ function App() {
         await loadSubcategories();
     };
 
-    const handleSaveGlobalContext = async (context: string[]) => {
+    const handleSaveGeneralContext = async (context: string[]) => {
         if (!window.electron) return;
-        await window.electron.invoke('update-global-context', context);
+        await window.electron.invoke('update-general-context', context);
     };
 
     const handleOpenSettings = React.useCallback(() => setSettingsOpen(true), []);
@@ -520,7 +520,7 @@ function App() {
                 setApiKey={setApiKey}
                 systemPrompt={systemPrompt}
                 setSystemPrompt={setSystemPrompt}
-                onSaveGlobalContext={handleSaveGlobalContext}
+                onSaveGeneralContext={handleSaveGeneralContext}
             />
 
             <RenameModal

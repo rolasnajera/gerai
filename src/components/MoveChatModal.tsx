@@ -37,12 +37,12 @@ const MoveChatModal: React.FC<MoveChatModalProps> = ({
                 </p>
 
                 <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                    {/* Global Option */}
+                    {/* General Option */}
                     <div
                         onClick={() => setSelectedSubId(null)}
                         className={`p-3 rounded-xl border-2 cursor-pointer transition-all ${selectedSubId === null ? 'border-gray-900 dark:border-white bg-gray-50 dark:bg-gray-700' : 'border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'}`}
                     >
-                        <div className="font-bold text-sm dark:text-white">Global Conversations</div>
+                        <div className="font-bold text-sm dark:text-white">General Conversations</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">No subcategory</div>
                     </div>
 

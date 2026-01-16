@@ -7,10 +7,10 @@ interface SettingsModalProps {
     setApiKey: (key: string) => void;
     systemPrompt: string;
     setSystemPrompt: (prompt: string) => void;
-    onSaveGlobalContext: (context: string[]) => Promise<void>;
+    onSaveGeneralContext: (context: string[]) => Promise<void>;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, setApiKey, systemPrompt, setSystemPrompt, onSaveGlobalContext }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, setApiKey, systemPrompt, setSystemPrompt, onSaveGeneralContext }) => {
     const [localKey, setLocalKey] = useState(apiKey);
     const [localPrompt, setLocalPrompt] = useState(systemPrompt);
     const [contextRows, setContextRows] = useState<string[]>(['']);
@@ -19,7 +19,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, 
         setLocalKey(apiKey);
         setLocalPrompt(systemPrompt);
         if (isOpen && window.electron) {
-            window.electron.invoke('get-global-context').then((data: any[]) => {
+            window.electron.invoke('get-general-context').then((data: any[]) => {
                 setContextRows(data.length > 0 ? data.map(d => d.content) : ['']);
             });
         }
@@ -28,7 +28,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, 
     const handleSave = async () => {
         setApiKey(localKey);
         setSystemPrompt(localPrompt);
-        await onSaveGlobalContext(contextRows.filter(r => r.trim() !== ''));
+        await onSaveGeneralContext(contextRows.filter(r => r.trim() !== ''));
         onClose();
     };
 
@@ -79,10 +79,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, 
                         />
                     </div>
 
-                    {/* Global Memory / Context */}
+                    {/* General Memory / Context */}
                     <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                         <div className="flex items-center justify-between">
-                            <label className="text-sm font-bold text-gray-700 dark:text-gray-200">Global Memory Bank</label>
+                            <label className="text-sm font-bold text-gray-700 dark:text-gray-200">General Memory Bank</label>
                             <button
                                 onClick={handleAddContext}
                                 className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -97,7 +97,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, 
                             {contextRows.map((row, index) => (
                                 <div key={index} className="relative group">
                                     <textarea
-                                        placeholder={`Enter a global fact...`}
+                                        placeholder={`Enter a general fact...`}
                                         value={row}
                                         onChange={(e) => handleContextChange(index, e.target.value)}
                                         rows={2}

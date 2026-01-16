@@ -5,7 +5,7 @@ interface MemoryModalProps {
     isOpen: boolean;
     onClose: () => void;
     subcategories: Subcategory[];
-    initialSubcategoryId?: number | null; // null for global
+    initialSubcategoryId?: number | null; // null for general
 }
 
 const MemoryModal: React.FC<MemoryModalProps> = ({ isOpen, onClose, subcategories, initialSubcategoryId }) => {
@@ -64,7 +64,7 @@ const MemoryModal: React.FC<MemoryModalProps> = ({ isOpen, onClose, subcategorie
 
     const currentSubName = filterId && filterId !== 'all'
         ? subcategories.find(s => s.id === filterId)?.name
-        : 'Global';
+        : 'General';
 
     return (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -93,7 +93,7 @@ const MemoryModal: React.FC<MemoryModalProps> = ({ isOpen, onClose, subcategorie
                                 onClick={() => setFilterId(null)}
                                 className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${filterId === null ? 'bg-white dark:bg-gray-800 text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
                             >
-                                Global
+                                General
                             </button>
                             {initialSubcategoryId && filterId !== 'all' && filterId !== null && (
                                 <button
@@ -137,7 +137,7 @@ const MemoryModal: React.FC<MemoryModalProps> = ({ isOpen, onClose, subcategorie
                                                     value={editSubcategoryId || ''}
                                                     onChange={(e) => setEditSubcategoryId(e.target.value ? Number(e.target.value) : null)}
                                                 >
-                                                    <option value="">Global Memory</option>
+                                                    <option value="">General Memory</option>
                                                     {subcategories.map(s => (
                                                         <option key={s.id} value={s.id}>{s.name}</option>
                                                     ))}
@@ -154,7 +154,7 @@ const MemoryModal: React.FC<MemoryModalProps> = ({ isOpen, onClose, subcategorie
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2 mb-2">
                                                         <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${m.subcategory_id ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
-                                                            {m.subcategory_id ? `Specific: ${m.subcategory_name}` : 'Global'}
+                                                            {m.subcategory_id ? `Specific: ${m.subcategory_name}` : 'General'}
                                                         </span>
                                                         <span className="text-[10px] text-gray-400">
                                                             Last updated: {new Date(m.updated_at).toLocaleDateString()}

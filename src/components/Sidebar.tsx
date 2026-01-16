@@ -109,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <button
                         onClick={() => onCreateNewChat()}
                         className="p-2.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100 dark:shadow-none transition-all active:scale-[0.98]"
-                        title="New Global Chat"
+                        title="New General Chat"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -272,7 +272,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <svg className="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
                         </svg>
-                        <span className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Global Conversations</span>
+                        <span className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">General Conversations</span>
                     </div>
                     <div className="space-y-0.5">
                         {conversations.filter(c => !c.subcategory_id).map(c => (

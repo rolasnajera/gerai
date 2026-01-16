@@ -261,7 +261,7 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('get-global-context', async () => {
+    ipcMain.handle('get-general-context', async () => {
         try {
             return await all('SELECT * FROM context WHERE subcategory_id IS NULL AND source = "manual" ORDER BY created_at ASC');
         } catch (err) {
@@ -270,7 +270,7 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('update-global-context', async (_event: IpcMainInvokeEvent, context: string[]) => {
+    ipcMain.handle('update-general-context', async (_event: IpcMainInvokeEvent, context: string[]) => {
         try {
             await run('BEGIN TRANSACTION');
             try {
@@ -437,13 +437,13 @@ function setupIPC() {
             let finalSystemPrompt = systemPrompt || (conv ? conv.system_prompt : "You are a helpful assistant.");
             let finalMessage = message;
 
-            // 3.1 Fetch Context (Hierarchical: Global + Subcategory)
+            // 3.1 Fetch Context (Hierarchical: General + Subcategory)
             let combinedContext = "";
 
-            // Fetch Global Context
+            // Fetch General Context
             const globalResults = await all<{ content: string }>('SELECT content FROM context WHERE subcategory_id IS NULL');
             if (globalResults.length > 0) {
-                combinedContext += `[GLOBAL MEMORY]\n${globalResults.map(r => r.content).join('\n')}\n\n`;
+                combinedContext += `[GENERAL MEMORY]\n${globalResults.map(r => r.content).join('\n')}\n\n`;
             }
 
             // Fetch Subcategory Context
@@ -540,7 +540,7 @@ function setupIPC() {
             }
 
             // Extract memory/facts after a successful response
-            // ONLY if it's NOT a global chat (incognito mode - subcategoryId is present)
+            // ONLY if it's NOT a general chat (incognito mode - subcategoryId is present)
             if (!isAborted && aiContent && apiKey && messageModel !== 'mock' && subcategoryId) {
                 const currentCid = cid;
                 const currentSubcategoryId = subcategoryId;

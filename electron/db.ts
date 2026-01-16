@@ -261,7 +261,7 @@ export async function upsertContext(params: {
     const { content, source, subcategoryId, categoryId } = params;
     console.log('[DB] upsertContext params:', { content: content.substring(0, 20) + '...', source, subcategoryId, categoryId });
 
-    // Check if an exact match exists for this subcategory/global
+    // Check if an exact match exists for this subcategory/general
     let existing: { id: number } | undefined;
     if (subcategoryId) {
         existing = await get<{ id: number }>('SELECT id FROM context WHERE content = ? AND subcategory_id = ?', [content, subcategoryId]);

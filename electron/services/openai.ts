@@ -152,13 +152,13 @@ Rules:
 2. Ignore ephemeral information (emotions, current hunger, temporary tasks).
 3. Do NOT extract sensitive info like passwords, API keys, or direct secrets.
 4. Keep facts concise and atomic.
-5. Identify if the fact is "Global" (about the user's life/identity) or "Specific" (about a particular task/project).
-6. Return a JSON object with a "facts" array, where each fact is an object: { "content": "fact text", "type": "global" | "specific" }.
+5. Identify if the fact is "General" (about the user's life/identity) or "Specific" (about a particular task/project).
+6. Return a JSON object with a "facts" array, where each fact is an object: { "content": "fact text", "type": "general" | "specific" }.
 
 Example Output:
 {
   "facts": [
-    { "content": "User prefers TypeScript over JavaScript", "type": "global" },
+    { "content": "User prefers TypeScript over JavaScript", "type": "general" },
     { "content": "This project uses the OpenAI responses API", "type": "specific" }
   ]
 }
