@@ -6,6 +6,8 @@ import RenameModal from './components/RenameModal';
 import MoveChatModal from './components/MoveChatModal';
 import SubcategoryModal from './components/SubcategoryModal';
 import DeleteSubcategoryModal from './components/DeleteSubcategoryModal';
+import CategoryModal from './components/CategoryModal';
+import DeleteCategoryModal from './components/DeleteCategoryModal';
 import MemoryModal from './components/MemoryModal';
 import SearchModal from './components/SearchModal';
 import UpdateNotification from './components/UpdateNotification';
@@ -60,6 +62,21 @@ function App() {
 
     const [deleteSubcategoryModalOpen, setDeleteSubcategoryModalOpen] = useState(false);
     const [deletingSubcategory, setDeletingSubcategory] = useState<Subcategory | null>(null);
+
+    // Category Modal State
+    const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+    const [categoryInitialData, setCategoryInitialData] = useState<{ name: string; icon: string; description: string; sort_order: number } | undefined>(undefined);
+
+    const [deleteCategoryModalOpen, setDeleteCategoryModalOpen] = useState(false);
+    const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+
+    // Fast-track state (Category -> Subcategory -> Chat)
+    const [isFastTrack, setIsFastTrack] = useState(false);
+
+    // Sidebar Expansion State
+    const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({ 0: true, 1: true });
+    const [expandedSubcategories, setExpandedSubcategories] = useState<Record<number, boolean>>({});
 
     // Theme state
     const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -394,10 +411,11 @@ function App() {
     };
 
     // Subcategory Handlers
-    const handleAddSubcategory = React.useCallback((category: Category) => {
+    const handleAddSubcategory = React.useCallback((category: Category, fastTrack: boolean = false) => {
         setSelectedCategory(category);
         setEditingSubcategory(null);
         setSubcategoryInitialData(undefined);
+        setIsFastTrack(fastTrack);
         setSubcategoryModalOpen(true);
     }, []);
 
@@ -439,6 +457,8 @@ function App() {
     const handleSaveSubcategory = async (name: string, description: string, context: string[], defaultModel?: string) => {
         if (!window.electron) return;
 
+        let newSubId: number | null = null;
+
         if (editingSubcategory) {
             await window.electron.invoke('update-subcategory', {
                 id: editingSubcategory.id,
@@ -448,20 +468,139 @@ function App() {
                 defaultModel
             });
         } else if (selectedCategory) {
-            await window.electron.invoke('create-subcategory', {
+            const result = await window.electron.invoke('create-subcategory', {
                 categoryId: selectedCategory.id,
                 name,
                 description,
                 context,
                 defaultModel
             });
+            newSubId = result.id;
         }
         await loadSubcategories();
+
+        if (newSubId) {
+            setExpandedCategories(prev => ({ ...prev, [selectedCategory!.id]: true }));
+            setExpandedSubcategories(prev => ({ ...prev, [newSubId]: true }));
+            handleCreateNewChat(newSubId);
+            setIsFastTrack(false);
+        }
     };
 
     const handleSaveGeneralContext = async (context: string[]) => {
         if (!window.electron) return;
         await window.electron.invoke('update-general-context', context);
+    };
+
+    // Category Handlers
+    const handleAddCategory = React.useCallback(() => {
+        setEditingCategory(null);
+        setCategoryInitialData(undefined);
+        setIsFastTrack(true);
+        setCategoryModalOpen(true);
+    }, []);
+
+    const handleEditCategory = React.useCallback((category: Category) => {
+        setEditingCategory(category);
+        setCategoryInitialData({
+            name: category.name,
+            icon: category.icon || 'folder',
+            description: category.description || '',
+            sort_order: category.sort_order
+        });
+        setCategoryModalOpen(true);
+    }, []);
+
+    const handleDeleteCategoryRequest = React.useCallback((category: Category) => {
+        setDeletingCategory(category);
+        setDeleteCategoryModalOpen(true);
+    }, []);
+
+    const handleConfirmDeleteCategory = async () => {
+        if (deletingCategory && window.electron) {
+            await window.electron.invoke('delete-category', deletingCategory.id);
+            await loadData(); // Reload everything since deleting a category deletes subcategories and chats
+            setCurrentCid(null);
+            setMessages([]);
+        }
+    };
+
+    const handleSaveCategory = async (name: string, icon: string, description: string) => {
+        if (!window.electron) return;
+
+        let newCat: Category | null = null;
+
+        if (editingCategory) {
+            await window.electron.invoke('update-category', {
+                id: editingCategory.id,
+                name,
+                icon,
+                description,
+                sortOrder: editingCategory.sort_order
+            });
+        } else {
+            // Get max sort order to append
+            const maxSort = categories.length > 0 ? Math.max(...categories.map(c => c.sort_order)) : 0;
+            const sortOrder = maxSort + 1;
+
+            const result = await window.electron.invoke('create-category', {
+                name,
+                icon,
+                description,
+                sortOrder
+            });
+            newCat = { id: result.id, name, icon, description, sort_order: sortOrder };
+        }
+        await loadCategories();
+
+        if (isFastTrack && newCat) {
+            handleAddSubcategory(newCat, true);
+        }
+    };
+
+    const handleReorderCategories = async (direction: 'up' | 'down', category: Category) => {
+        if (!window.electron) return;
+        const index = categories.findIndex(c => c.id === category.id);
+        if (index === -1) return;
+
+        const newCategories = [...categories];
+        if (direction === 'up' && index > 0) {
+            [newCategories[index - 1], newCategories[index]] = [newCategories[index], newCategories[index - 1]];
+        } else if (direction === 'down' && index < newCategories.length - 1) {
+            [newCategories[index], newCategories[index + 1]] = [newCategories[index + 1], newCategories[index]];
+        } else {
+            return;
+        }
+
+        await window.electron.invoke('reorder-categories', newCategories.map(c => c.id));
+        await loadCategories();
+    };
+
+    const handleSortCategoriesAlphabetically = async () => {
+        if (!window.electron) return;
+        await window.electron.invoke('sort-categories-alphabetically');
+        await loadCategories();
+    };
+
+    const handleReorderSubcategories = async (direction: 'up' | 'down', subcategory: Subcategory) => {
+        if (!window.electron) return;
+        const subId = subcategory.id;
+        const catId = subcategory.category_id;
+        const siblings = subcategories.filter(s => s.category_id === catId);
+        const index = siblings.findIndex(s => s.id === subId);
+        if (index === -1) return;
+
+        const newSiblings = [...siblings];
+        if (direction === 'up' && index > 0) {
+            [newSiblings[index - 1], newSiblings[index]] = [newSiblings[index], newSiblings[index - 1]];
+        } else if (direction === 'down' && index < newSiblings.length - 1) {
+            [newSiblings[index], newSiblings[index + 1]] = [newSiblings[index + 1], newSiblings[index]];
+        } else {
+            return;
+        }
+
+        await window.electron.invoke('reorder-subcategories', newSiblings.map(s => s.id));
+        await loadSubcategories();
     };
 
     const handleOpenSettings = React.useCallback(() => setSettingsOpen(true), []);
@@ -493,8 +632,18 @@ function App() {
                 onAddSubcategory={handleAddSubcategory}
                 onEditSubcategory={handleEditSubcategory}
                 onDeleteSubcategory={handleDeleteSubcategoryRequest}
+                onAddCategory={handleAddCategory}
+                onEditCategory={handleEditCategory}
+                onDeleteCategory={handleDeleteCategoryRequest}
                 onOpenMemory={handleOpenMemory}
                 onShowSearchResults={handleShowSearchResults}
+                expandedCategories={expandedCategories}
+                setExpandedCategories={setExpandedCategories}
+                expandedSubcategories={expandedSubcategories}
+                setExpandedSubcategories={setExpandedSubcategories}
+                onReorderCategory={handleReorderCategories}
+                onSortCategoriesAlphabetically={handleSortCategoriesAlphabetically}
+                onReorderSubcategory={handleReorderSubcategories}
             />
 
             <ChatInterface
@@ -561,6 +710,20 @@ function App() {
                 onClose={() => setDeleteSubcategoryModalOpen(false)}
                 onConfirm={handleConfirmDeleteSubcategory}
                 subcategoryName={deletingSubcategory?.name || ''}
+            />
+
+            <CategoryModal
+                isOpen={categoryModalOpen}
+                onClose={() => setCategoryModalOpen(false)}
+                onSave={handleSaveCategory}
+                initialData={categoryInitialData}
+            />
+
+            <DeleteCategoryModal
+                isOpen={deleteCategoryModalOpen}
+                onClose={() => setDeleteCategoryModalOpen(false)}
+                onConfirm={handleConfirmDeleteCategory}
+                categoryName={deletingCategory?.name || ''}
             />
 
             <MemoryModal

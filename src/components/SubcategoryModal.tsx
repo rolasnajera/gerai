@@ -70,7 +70,7 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
                 <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-810">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                            {initialData ? `Edit ${name}` : `Create New ${categoryName}`}
+                            {initialData ? `Edit ${name}` : `New subcategory in: ${categoryName}`}
                         </h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                             Add details about this {categoryName.toLowerCase()} to help organize your chats
@@ -180,7 +180,7 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
                         disabled={!name.trim()}
                         className="px-6 py-2 text-sm font-semibold text-white bg-gray-900 dark:bg-white dark:text-gray-900 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        {initialData ? 'Save Changes' : `Create ${categoryName}`}
+                        {initialData ? 'Save Changes' : `Create`}
                     </button>
                 </div>
             </div>

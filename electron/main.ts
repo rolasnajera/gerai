@@ -161,9 +161,73 @@ function setupIPC() {
         }
     });
 
+    ipcMain.handle('create-category', async (_event: IpcMainInvokeEvent, { name, icon, description, sortOrder }: { name: string, icon?: string, description?: string, sortOrder?: number }) => {
+        try {
+            const result = await run(
+                'INSERT INTO categories (name, icon, description, sort_order) VALUES (?, ?, ?, ?)',
+                [name, icon || 'folder', description || '', sortOrder || 0]
+            );
+            return { id: result.id };
+        } catch (err) {
+            console.error(err);
+            throw err;
+        }
+    });
+
+    ipcMain.handle('update-category', async (_event: IpcMainInvokeEvent, { id, name, icon, description, sortOrder }: { id: number, name: string, icon?: string, description?: string, sortOrder?: number }) => {
+        try {
+            await run('UPDATE categories SET name = ?, icon = ?, description = ?, sort_order = ? WHERE id = ?', [name, icon || 'folder', description || '', sortOrder || 0, id]);
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
+    ipcMain.handle('delete-category', async (_event: IpcMainInvokeEvent, id: number) => {
+        try {
+            await run('DELETE FROM categories WHERE id = ?', [id]);
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
+    ipcMain.handle('reorder-categories', async (_event: IpcMainInvokeEvent, categoryIds: number[]) => {
+        try {
+            await run('BEGIN TRANSACTION');
+            for (let i = 0; i < categoryIds.length; i++) {
+                await run('UPDATE categories SET sort_order = ? WHERE id = ?', [i, categoryIds[i]]);
+            }
+            await run('COMMIT');
+            return true;
+        } catch (err) {
+            await run('ROLLBACK');
+            console.error(err);
+            return false;
+        }
+    });
+
+    ipcMain.handle('sort-categories-alphabetically', async () => {
+        try {
+            const categories = await all('SELECT id FROM categories ORDER BY name COLLATE NOCASE ASC');
+            await run('BEGIN TRANSACTION');
+            for (let i = 0; i < categories.length; i++) {
+                await run('UPDATE categories SET sort_order = ? WHERE id = ?', [i, categories[i].id]);
+            }
+            await run('COMMIT');
+            return true;
+        } catch (err) {
+            await run('ROLLBACK');
+            console.error(err);
+            return false;
+        }
+    });
+
     ipcMain.handle('get-subcategories', async () => {
         try {
-            return await all('SELECT * FROM subcategories ORDER BY created_at ASC');
+            return await all('SELECT * FROM subcategories ORDER BY sort_order ASC');
         } catch (err) {
             console.error(err);
             return [];
@@ -197,6 +261,21 @@ function setupIPC() {
         } catch (err) {
             console.error(err);
             throw err;
+        }
+    });
+
+    ipcMain.handle('reorder-subcategories', async (_event: IpcMainInvokeEvent, subcategoryIds: number[]) => {
+        try {
+            await run('BEGIN TRANSACTION');
+            for (let i = 0; i < subcategoryIds.length; i++) {
+                await run('UPDATE subcategories SET sort_order = ? WHERE id = ?', [i, subcategoryIds[i]]);
+            }
+            await run('COMMIT');
+            return true;
+        } catch (err) {
+            await run('ROLLBACK');
+            console.error(err);
+            return false;
         }
     });
 

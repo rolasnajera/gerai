@@ -47,6 +47,7 @@ export function initDb(): void {
             name TEXT NOT NULL,
             description TEXT,
             default_model TEXT,
+            sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
@@ -149,6 +150,16 @@ export function initDb(): void {
                         console.error("Error adding default_model column to subcategories:", err);
                     } else {
                         console.log("Successfully added default_model column to subcategories.");
+                    }
+                });
+            }
+            const hasSortOrder = rows.some(row => row.name === 'sort_order');
+            if (!hasSortOrder) {
+                db!.run("ALTER TABLE subcategories ADD COLUMN sort_order INTEGER DEFAULT 0", (err: Error | null) => {
+                    if (err) {
+                        console.error("Error adding sort_order column to subcategories:", err);
+                    } else {
+                        console.log("Successfully added sort_order column to subcategories.");
                     }
                 });
             }

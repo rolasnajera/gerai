@@ -13,13 +13,23 @@ interface SidebarProps {
     onRenameChat: (cid: number, currentTitle: string) => void;
     onMoveChat: (cid: number) => void;
     onOpenSettings: () => void;
-    onAddSubcategory: (category: Category) => void;
+    onAddSubcategory: (category: Category, fastTrack?: boolean) => void;
     onEditSubcategory: (subcategory: Subcategory) => void;
     onDeleteSubcategory: (subcategory: Subcategory) => void;
+    onAddCategory: () => void;
+    onEditCategory: (category: Category) => void;
+    onDeleteCategory: (category: Category) => void;
     onOpenMemory: (subcategoryId?: number | null) => void;
     onShowSearchResults: (query: string) => void;
     isDarkMode: boolean;
     onToggleDarkMode: () => void;
+    expandedCategories: Record<number, boolean>;
+    setExpandedCategories: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
+    expandedSubcategories: Record<number, boolean>;
+    setExpandedSubcategories: React.Dispatch<React.SetStateAction<Record<number, boolean>>>;
+    onReorderCategory: (direction: 'up' | 'down', category: Category) => void;
+    onSortCategoriesAlphabetically: () => void;
+    onReorderSubcategory: (direction: 'up' | 'down', subcategory: Subcategory) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({
@@ -36,14 +46,52 @@ const Sidebar: React.FC<SidebarProps> = ({
     onAddSubcategory,
     onEditSubcategory,
     onDeleteSubcategory,
+    onAddCategory,
+    onEditCategory,
+    onDeleteCategory,
     onOpenMemory,
     onShowSearchResults,
     isDarkMode,
-    onToggleDarkMode
+    onToggleDarkMode,
+    expandedCategories,
+    setExpandedCategories,
+    expandedSubcategories,
+    setExpandedSubcategories,
+    onReorderCategory,
+    onSortCategoriesAlphabetically,
+    onReorderSubcategory
 }) => {
-    const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({ 1: true });
-    const [expandedSubcategories, setExpandedSubcategories] = useState<Record<number, boolean>>({});
     const [appVersion, setAppVersion] = useState<string>('');
+    const [menuConfig, setMenuConfig] = useState<{
+        x: number;
+        y: number;
+        item: Category | Subcategory | null;
+        type: 'category' | 'subcategory' | null;
+    } | null>(null);
+
+    // Close menu on click elsewhere
+    React.useEffect(() => {
+        const handleOutsideClick = () => setMenuConfig(null);
+        if (menuConfig) {
+            window.addEventListener('click', handleOutsideClick);
+            window.addEventListener('contextmenu', handleOutsideClick);
+        }
+        return () => {
+            window.removeEventListener('click', handleOutsideClick);
+            window.removeEventListener('contextmenu', handleOutsideClick);
+        };
+    }, [menuConfig]);
+
+    const handleContextMenu = (e: React.MouseEvent, item: Category | Subcategory, type: 'category' | 'subcategory') => {
+        e.preventDefault();
+        e.stopPropagation();
+        setMenuConfig({
+            x: e.clientX,
+            y: e.clientY,
+            item,
+            type
+        });
+    };
 
     // Search state
     const [searchQuery, setSearchQuery] = useState('');
@@ -118,6 +166,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                 return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>;
             case 'archive':
                 return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>;
+            case 'layers':
+                return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>;
+            case 'terminal':
+                return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>;
+            case 'code':
+                return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>;
+            case 'database':
+                return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>;
             default:
                 return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>;
         }
@@ -280,11 +336,105 @@ const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Tree Section */}
             <div className="flex-1 overflow-y-auto px-2 py-4 space-y-4 custom-scrollbar">
+                <div className="flex items-center justify-between px-2 mb-2 group">
+                    <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors">
+                        Knowledge Base
+                    </h3>
+                    <div className="flex items-center gap-0.5 ml-auto opacity-0 group-hover:opacity-100 transition-all">
+                        <button
+                            onClick={onSortCategoriesAlphabetically}
+                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-810 rounded transition-all text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                            title="Sort Alphabetically"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="14" y2="12"></line><line x1="4" y1="18" x2="8" y2="18"></line><polyline points="15 15 18 18 21 15"></polyline><line x1="18" y1="18" x2="18" y2="8"></line></svg>
+                        </button>
+                        <button
+                            onClick={onAddCategory}
+                            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-810 rounded transition-all text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                            title="Add Category"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        </button>
+                    </div>
+                </div>
+
+                {/* General Conversations (System Category) */}
+                <div className="space-y-1">
+                    <div
+                        onClick={() => toggleCategory(0)}
+                        className="group flex items-center gap-2 px-2 py-1 cursor-pointer transition-colors"
+                    >
+                        <svg
+                            className={`w-3 h-3 text-gray-400 transition-transform ${expandedCategories[0] ? 'rotate-90' : ''}`}
+                            xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                        >
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                        <div className="flex-shrink-0 text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        </div>
+                        <span className="flex-1 font-extrabold text-[11px] uppercase tracking-widest text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">General Conversations</span>
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedCategories(prev => ({ ...prev, [0]: true }));
+                                onCreateNewChat();
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-all"
+                            title="New General Chat"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        </button>
+                    </div>
+
+                    {expandedCategories[0] && (
+                        <div className="pl-6 ml-4 border-l border-gray-100 dark:border-gray-900 space-y-0.5">
+                            {conversations.filter(c => !c.subcategory_id).map(c => (
+                                <div
+                                    key={c.id}
+                                    onClick={() => onSelectConversation(c.id)}
+                                    className={`group/chat flex items-center justify-between p-2 rounded-lg cursor-pointer text-sm font-medium transition-all ${currentCid === c.id ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-gray-100 dark:ring-gray-800' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-900/50'}`}
+                                >
+                                    <div className="flex items-center gap-2 truncate">
+                                        <span className="truncate" title={c.title}>{c.title}</span>
+                                    </div>
+                                    <div className={`flex items-center gap-1 transition-opacity ${currentCid === c.id ? '' : 'opacity-0 group-hover/chat:opacity-100'}`}>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onRenameChat(c.id, c.title); }}
+                                            className="p-0.5 hover:text-blue-500"
+                                            title="Rename"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onMoveChat(c.id); }}
+                                            className="p-0.5 hover:text-blue-500"
+                                            title="Move"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><path d="M12 11v6"></path><path d="M9 14l3 3 3-3"></path></svg>
+                                        </button>
+                                        <button
+                                            onClick={(e) => { e.stopPropagation(); onDeleteChat(c.id); }}
+                                            className="p-0.5 hover:text-red-500"
+                                            title="Delete"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Knowledge Base Categories */}
                 {categories.map(cat => (
                     <div key={cat.id} className="space-y-1">
                         {/* Category Row */}
                         <div
                             onClick={() => toggleCategory(cat.id)}
+                            onContextMenu={(e) => handleContextMenu(e, cat, 'category')}
                             className="group flex items-center gap-2 px-2 py-1 cursor-pointer transition-colors"
                         >
                             <svg
@@ -296,19 +446,32 @@ const Sidebar: React.FC<SidebarProps> = ({
                             <div className="flex-shrink-0 text-gray-400">
                                 {getIcon(cat.icon)}
                             </div>
-                            <span className="flex-1 font-extrabold text-[11px] uppercase tracking-widest text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" title={cat.name}>{cat.name}</span>
+                            <span className="flex-1 font-extrabold text-[11px] uppercase tracking-widest text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors truncate" title={cat.name}>{cat.name}</span>
 
-                            {/* New Subcategory Button (Hover) */}
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
-                                    onAddSubcategory(cat);
-                                }}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-all"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            </button>
+                            {/* Category Actions */}
+                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setExpandedCategories(prev => ({ ...prev, [cat.id]: true }));
+                                        onAddSubcategory(cat);
+                                    }}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-810 rounded transition-all"
+                                    title="Add Subcategory"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                </button>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleContextMenu(e, cat, 'category');
+                                    }}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-810 rounded transition-all"
+                                    title="More Options"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
+                                </button>
+                            </div>
                         </div>
 
                         {/* Subcategories (Expanded) */}
@@ -321,6 +484,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                                             {/* Subcategory Row */}
                                             <div
                                                 onClick={() => toggleSubcategory(sub.id)}
+                                                onContextMenu={(e) => handleContextMenu(e, sub, 'subcategory')}
                                                 className="group/sub flex items-center gap-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
                                             >
                                                 <svg
@@ -330,23 +494,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                     <polyline points="9 18 15 12 9 6"></polyline>
                                                 </svg>
                                                 <svg className="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"></path></svg>
-                                                <span className="flex-1 text-sm font-bold text-gray-700 dark:text-gray-200 truncate" title={sub.name}>{sub.name}</span>
-                                                <span className="text-xs text-gray-400 font-medium font-sans">
+                                                <span className="flex-1 text-sm font-bold text-gray-700 dark:text-gray-200 truncate pr-1" title={sub.name}>{sub.name}</span>
+                                                <span className="text-xs text-gray-400 font-medium font-sans mr-auto">
                                                     ({conversations.filter(c => c.subcategory_id === sub.id).length})
                                                 </span>
 
                                                 {/* Subcategory Actions */}
                                                 <div className="flex items-center gap-0.5 opacity-0 group-hover/sub:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            onOpenMemory(sub.id);
-                                                        }}
-                                                        className="p-1 hover:text-blue-500"
-                                                        title="Memory Bank"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12s-3-7-10-7-10 7-10 7 3 7 10 7 10-7 10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
-                                                    </button>
                                                     <button
                                                         onClick={(e) => {
                                                             e.stopPropagation();
@@ -359,18 +513,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                                                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                                                     </button>
                                                     <button
-                                                        onClick={(e) => { e.stopPropagation(); onEditSubcategory(sub); }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleContextMenu(e, sub, 'subcategory');
+                                                        }}
                                                         className="p-1 hover:text-blue-500"
-                                                        title="Edit"
+                                                        title="More Options"
                                                     >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                                                    </button>
-                                                    <button
-                                                        onClick={(e) => { e.stopPropagation(); onDeleteSubcategory(sub); }}
-                                                        className="p-1 hover:text-red-500"
-                                                        title="Delete"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></svg>
                                                     </button>
                                                 </div>
                                             </div>
@@ -423,59 +573,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                         )}
                     </div>
                 ))}
-
-                {/* Uncategorized Chats */}
-                <div className="space-y-1 mt-6">
-                    <div className="px-2 py-1 flex items-center gap-2">
-                        <svg className="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                        <span className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">General Conversations</span>
-                    </div>
-                    <div className="space-y-0.5">
-                        {conversations.filter(c => !c.subcategory_id).map(c => (
-                            <div
-                                key={c.id}
-                                onClick={() => onSelectConversation(c.id)}
-                                className={`group/chat flex items-center justify-between p-2 rounded-lg cursor-pointer text-sm font-medium transition-all ${currentCid === c.id ? 'bg-white dark:bg-gray-900 text-indigo-600 dark:text-indigo-400 shadow-sm ring-1 ring-gray-100 dark:ring-gray-800' : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-300 hover:bg-gray-100/50 dark:hover:bg-gray-900/50'}`}
-                            >
-                                <div className="flex items-center gap-2 truncate">
-                                    <svg className="w-4 h-4 flex-shrink-0 opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                                    </svg>
-                                    <span className="truncate" title={c.title}>{c.title}</span>
-                                </div>
-                                <div className={`flex items-center gap-1 transition-opacity ${currentCid === c.id ? '' : 'opacity-0 group-hover/chat:opacity-100'}`}>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onRenameChat(c.id, c.title); }}
-                                        className="p-0.5 hover:text-blue-500"
-                                        title="Rename"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onMoveChat(c.id); }}
-                                        className="p-0.5 hover:text-blue-500"
-                                        title="Move"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><path d="M12 11v6"></path><path d="M9 14l3 3 3-3"></path></svg>
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onDeleteChat(c.id); }}
-                                        className="p-0.5 hover:text-red-500"
-                                        title="Delete"
-                                    >
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-gray-100 dark:border-gray-900 bg-gray-50/50 dark:bg-gray-950/50 space-y-6">
+            <div className="p-4 border-t border-gray-100 dark:border-gray-900 bg-gray-50/50 dark:bg-gray-950/50">
                 <div className="flex items-center justify-between px-2">
                     <button
                         onClick={onToggleDarkMode}
@@ -527,9 +628,95 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <div className="text-[10px] text-indigo-100 font-medium truncate leading-none">Unlock advanced capabilities</div>
                     </div>
                 </button>
-            </div>
+            </div >
+            {/* Floating Menu */}
+            {
+                menuConfig && (
+                    <div
+                        className="fixed z-[100] bg-white dark:bg-gray-800 rounded-lg shadow-2xl border border-gray-100 dark:border-gray-700 py-1 flex flex-col min-w-[160px] animate-in fade-in zoom-in duration-100"
+                        style={{ left: Math.min(menuConfig.x, window.innerWidth - 170), top: Math.min(menuConfig.y, window.innerHeight - 200) }}
+                    >
+                        {menuConfig.type === 'category' ? (
+                            <>
+                                <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-gray-750 mb-1">
+                                    Category Actions
+                                </div>
+                                <button
+                                    onClick={() => onReorderCategory('up', menuConfig.item as Category)}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                    Move Up
+                                </button>
+                                <button
+                                    onClick={() => onReorderCategory('down', menuConfig.item as Category)}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    Move Down
+                                </button>
+                                <button
+                                    onClick={() => onEditCategory(menuConfig.item as Category)}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                    Edit Category
+                                </button>
+                                <button
+                                    onClick={() => onDeleteCategory(menuConfig.item as Category)}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                    Delete Category
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 dark:border-gray-750 mb-1">
+                                    Subcategory Actions
+                                </div>
+                                <button
+                                    onClick={() => onReorderSubcategory('up', menuConfig.item as Subcategory)}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                    Move Up
+                                </button>
+                                <button
+                                    onClick={() => onReorderSubcategory('down', menuConfig.item as Subcategory)}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                    Move Down
+                                </button>
+                                <button
+                                    onClick={() => onOpenMemory((menuConfig.item as Subcategory).id)}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12s-3-7-10-7-10 7-10 7 3 7 10 7 10-7 10-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                                    Memory Bank
+                                </button>
+                                <button
+                                    onClick={() => onEditSubcategory(menuConfig.item as Subcategory)}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                                    Edit Subcategory
+                                </button>
+                                <button
+                                    onClick={() => onDeleteSubcategory(menuConfig.item as Subcategory)}
+                                    className="flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                    Delete Subcategory
+                                </button>
+                            </>
+                        )}
+                    </div>
+                )
+            }
         </aside>
     );
 };
 
-export default React.memo(Sidebar);
+export default Sidebar;
