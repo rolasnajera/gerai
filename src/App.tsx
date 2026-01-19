@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
 import SettingsModal from './components/SettingsModal';
+import ModelManagementModal from './components/ModelManagementModal';
 import RenameModal from './components/RenameModal';
 import MoveChatModal from './components/MoveChatModal';
 import SubcategoryModal from './components/SubcategoryModal';
@@ -11,9 +12,9 @@ import DeleteCategoryModal from './components/DeleteCategoryModal';
 import MemoryModal from './components/MemoryModal';
 import SearchModal from './components/SearchModal';
 import UpdateNotification from './components/UpdateNotification';
-import { Message, Conversation, Category, Subcategory } from './types';
+import { Message, Conversation, Category, Subcategory, ProviderModel } from './types';
 
-import { DEFAULT_MODEL, AVAILABLE_MODELS, Model } from './constants/models';
+import { DEFAULT_MODEL } from './constants/models';
 
 function App() {
     const [categories, setCategories] = useState<Category[]>([]);
@@ -34,15 +35,10 @@ function App() {
     const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
 
     // Settings State
-    const [apiKey, setApiKey] = useState(localStorage.getItem('openai_key') || '');
+    const [modelManagementOpen, setModelManagementOpen] = useState(false);
     const [systemPrompt, setSystemPrompt] = useState(localStorage.getItem('system_prompt') || 'You are a helpful assistant.');
-    const [model, setModel] = useState(() => {
-        const saved = localStorage.getItem('general_model');
-        if (saved && AVAILABLE_MODELS.some((m: Model) => m.id === saved)) {
-            return saved;
-        }
-        return DEFAULT_MODEL;
-    });
+    const [model, setModel] = useState(localStorage.getItem('general_model') || DEFAULT_MODEL);
+    const [enabledModels, setEnabledModels] = useState<ProviderModel[]>([]);
 
     // Rename State
     const [renameModalOpen, setRenameModalOpen] = useState(false);
@@ -105,15 +101,40 @@ function App() {
         await Promise.all([
             loadCategories(),
             loadSubcategories(),
-            loadConversations()
+            loadConversations(),
+            loadEnabledModels()
         ]);
     };
 
-    // Save Settings when changed
+    const loadEnabledModels = async () => {
+        if (window.electron) {
+            const providers = await window.electron.invoke('get-providers');
+            const activeProviderIds = providers.filter((p: any) => p.is_active).map((p: any) => p.id);
+
+            let allEnabledModels: ProviderModel[] = [];
+            for (const pId of activeProviderIds) {
+                const pModels = await window.electron.invoke('get-provider-models', pId);
+                allEnabledModels = [...allEnabledModels, ...pModels.filter((m: any) => m.is_enabled)];
+            }
+            setEnabledModels(allEnabledModels);
+
+            // If current model is not in enabled models, fallback
+            if (allEnabledModels.length > 0 && !allEnabledModels.some(m => m.id === model)) {
+                setModel(allEnabledModels[0].id);
+            }
+        }
+    };
+
+    // Refresh models when modal closes
     useEffect(() => {
-        localStorage.setItem('openai_key', apiKey);
+        if (!modelManagementOpen) {
+            loadEnabledModels();
+        }
+    }, [modelManagementOpen]);
+
+    useEffect(() => {
         localStorage.setItem('system_prompt', systemPrompt);
-    }, [apiKey, systemPrompt]);
+    }, [systemPrompt]);
 
     // Set up streaming event listeners
     useEffect(() => {
@@ -280,11 +301,8 @@ function App() {
     }, [model, subcategories, systemPrompt, loadConversations]);
 
     const handleSendMessage = async (text: string, selectedModel: string) => {
-        if (!apiKey && selectedModel !== 'mock') {
-            setSettingsOpen(true);
-            alert("Please set your API Key first.");
-            return;
-        }
+        // Validation check for model availability happens in the UI
+        // or the backend will throw if no key is found.
 
         // Generate Request ID on frontend to track streaming immediately
         const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -310,7 +328,6 @@ function App() {
                     conversationId: currentCid,
                     message: text,
                     model: selectedModel,
-                    apiKey,
                     systemPrompt
                 });
 
@@ -629,6 +646,7 @@ function App() {
                 onRenameChat={handleRenameChat}
                 onMoveChat={handleMoveChat}
                 onOpenSettings={handleOpenSettings}
+                onOpenModelManagement={() => setModelManagementOpen(true)}
                 onAddSubcategory={handleAddSubcategory}
                 onEditSubcategory={handleEditSubcategory}
                 onDeleteSubcategory={handleDeleteSubcategoryRequest}
@@ -656,6 +674,7 @@ function App() {
                 streamingMessage={streamingMessage}
                 model={model}
                 setModel={handleSetModel}
+                enabledModels={enabledModels}
                 title={conversations.find(c => c.id === currentCid)?.title}
                 categoryName={(() => {
                     const conv = conversations.find(c => c.id === currentCid);
@@ -674,11 +693,14 @@ function App() {
             <SettingsModal
                 isOpen={settingsOpen}
                 onClose={() => setSettingsOpen(false)}
-                apiKey={apiKey}
-                setApiKey={setApiKey}
                 systemPrompt={systemPrompt}
                 setSystemPrompt={setSystemPrompt}
                 onSaveGeneralContext={handleSaveGeneralContext}
+            />
+
+            <ModelManagementModal
+                isOpen={modelManagementOpen}
+                onClose={() => setModelManagementOpen(false)}
             />
 
             <RenameModal

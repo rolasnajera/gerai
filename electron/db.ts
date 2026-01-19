@@ -190,7 +190,6 @@ export function initDb(): void {
             { name: 'Resources', icon: 'book', sort_order: 3 },
             { name: 'Archives', icon: 'archive', sort_order: 4 }
         ];
-
         db!.get("SELECT COUNT(*) as count FROM categories", (err, row: { count: number }) => {
             if (!err && row.count === 0) {
                 const stmt = db!.prepare("INSERT INTO categories (name, icon, sort_order) VALUES (?, ?, ?)");
@@ -201,6 +200,54 @@ export function initDb(): void {
                 console.log("Seeded default categories");
             }
         });
+
+        // Create Model Providers Table
+        db!.run(`CREATE TABLE IF NOT EXISTS model_providers (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            api_key TEXT,
+            is_active INTEGER DEFAULT 0,
+            config TEXT, -- JSON string for additional config
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`);
+
+        // Create Provider Models Table
+        db!.run(`CREATE TABLE IF NOT EXISTS provider_models (
+            id TEXT PRIMARY KEY,
+            provider_id TEXT,
+            name TEXT NOT NULL,
+            is_enabled INTEGER DEFAULT 0,
+            capabilities TEXT, -- JSON string of capabilities (vision, etc.)
+            description TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (provider_id) REFERENCES model_providers(id) ON DELETE CASCADE
+        )`);
+
+        // Seed default providers
+        const defaultProviders = [
+            { id: 'openai', name: 'OpenAI' },
+            { id: 'anthropic', name: 'Anthropic' },
+            { id: 'gemini', name: 'Google Gemini' },
+            { id: 'grok', name: 'xAI Grok' },
+            { id: 'mistral', name: 'Mistral AI' },
+            { id: 'mock', name: 'Mock Model (Development)' }
+        ];
+
+        const seedProviders = async () => {
+            for (const p of defaultProviders) {
+                db!.run(
+                    "INSERT INTO model_providers (id, name, is_active) VALUES (?, ?, ?) ON CONFLICT(id) DO NOTHING",
+                    [p.id, p.name, p.id === 'mock' ? 1 : 0]
+                );
+            }
+            // Seed mock model if it doesn't exist
+            db!.run("INSERT INTO provider_models (id, provider_id, name, is_enabled) VALUES (?, ?, ?, ?) ON CONFLICT(id) DO NOTHING",
+                ['mock', 'mock', 'Mock Model', 1]);
+        };
+
+        seedProviders();
     });
 }
 

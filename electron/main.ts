@@ -3,6 +3,7 @@ import path from 'path';
 import { run, get, all, connect, upsertContext } from './db';
 import { getOpenAIResponse, extractMemories } from './services/openai';
 import { getMockResponse } from './services/mock';
+import { encryptString, decryptString } from './encryption';
 import { autoUpdater } from 'electron-updater';
 
 let mainWindow: BrowserWindow | undefined;
@@ -468,7 +469,121 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, apiKey, systemPrompt, requestId }: { conversationId?: number, message: string, model?: string, apiKey: string, systemPrompt?: string, requestId: string }) => {
+    ipcMain.handle('get-providers', async () => {
+        try {
+            return await all('SELECT * FROM model_providers ORDER BY name ASC');
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    });
+
+    ipcMain.handle('update-provider', async (_event: IpcMainInvokeEvent, { id, apiKey, isActive, config }: { id: string, apiKey?: string, isActive?: boolean, config?: string }) => {
+        try {
+            console.log(`[IPC] update-provider: id=${id}, isActive=${isActive}, hasApiKey=${!!apiKey}`);
+            const updates: string[] = [];
+            const params: any[] = [];
+
+            if (apiKey !== undefined) {
+                updates.push('api_key = ?');
+                params.push(apiKey ? encryptString(apiKey) : null);
+            }
+            if (isActive !== undefined) {
+                updates.push('is_active = ?');
+                params.push(isActive ? 1 : 0);
+            }
+            if (config !== undefined) {
+                updates.push('config = ?');
+                params.push(config);
+            }
+
+            if (updates.length > 0) {
+                params.push(id);
+                await run(`UPDATE model_providers SET ${updates.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, params);
+            }
+
+            // If API key is removed, also remove associated models to prevent stale data
+            if (apiKey === null) {
+                await run('DELETE FROM provider_models WHERE provider_id = ?', [id]);
+            }
+
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
+    ipcMain.handle('get-provider-models', async (_event: IpcMainInvokeEvent, providerId: string) => {
+        try {
+            return await all('SELECT * FROM provider_models WHERE provider_id = ? ORDER BY name ASC', [providerId]);
+        } catch (err) {
+            console.error(err);
+            return [];
+        }
+    });
+
+    ipcMain.handle('toggle-provider-model', async (_event: IpcMainInvokeEvent, { id, isEnabled }: { id: string, isEnabled: boolean }) => {
+        try {
+            console.log(`[IPC] toggle-provider-model: id=${id}, isEnabled=${isEnabled}`);
+            await run('UPDATE provider_models SET is_enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [isEnabled ? 1 : 0, id]);
+            return true;
+        } catch (err) {
+            console.error(err);
+            return false;
+        }
+    });
+
+    ipcMain.handle('fetch-remote-models', async (_event: IpcMainInvokeEvent, providerId: string) => {
+        try {
+            console.log(`[IPC] fetch-remote-models: providerId=${providerId}`);
+            if (providerId !== 'openai') {
+                return { success: false, message: 'Only OpenAI model fetching is implemented for now.' };
+            }
+
+            const provider = await get<{ api_key: string }>('SELECT api_key FROM model_providers WHERE id = ?', [providerId]);
+            if (!provider || !provider.api_key) {
+                return { success: false, message: 'API key not configured for this provider.' };
+            }
+
+            const apiKey = decryptString(provider.api_key);
+
+            // Re-use OpenAI service or fetch directly
+            const response = await fetch('https://api.openai.com/v1/models', {
+                headers: { 'Authorization': `Bearer ${apiKey}` }
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                return { success: false, message: err.error?.message || 'Failed to fetch models' };
+            }
+
+            const data = await response.json();
+            const models = data.data.filter((m: any) => m.id.startsWith('gpt-'));
+
+            await run('BEGIN TRANSACTION');
+            try {
+                for (const model of models) {
+                    await run(`
+                        INSERT INTO provider_models (id, provider_id, name, is_enabled)
+                        VALUES (?, 'openai', ?, 0)
+                        ON CONFLICT(id) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+                    `, [model.id, model.id]);
+                }
+                await run('COMMIT');
+            } catch (err) {
+                await run('ROLLBACK');
+                throw err;
+            }
+
+            return { success: true };
+        } catch (err: any) {
+            console.error(err);
+            return { success: false, message: err.message };
+        }
+    });
+
+    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, systemPrompt, requestId }: { conversationId?: number, message: string, model?: string, systemPrompt?: string, requestId: string }) => {
         let cid = conversationId;
         // Use the requestId provided by the frontend
         // const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -560,8 +675,22 @@ function setupIPC() {
                     abortController.signal
                 );
             } else {
+                // Fetch API Key from DB for the model's provider
+                const modelInfo = await get<{ provider_id: string }>('SELECT provider_id FROM provider_models WHERE id = ?', [messageModel]);
+                let finalApiKey = '';
+                if (modelInfo) {
+                    const provider = await get<{ api_key: string }>('SELECT api_key FROM model_providers WHERE id = ?', [modelInfo.provider_id]);
+                    if (provider && provider.api_key) {
+                        finalApiKey = decryptString(provider.api_key);
+                    }
+                }
+
+                if (!finalApiKey) {
+                    throw new Error(`API Key not found for model ${messageModel}`);
+                }
+
                 aiResponse = await getOpenAIResponse(
-                    apiKey,
+                    finalApiKey,
                     finalMessage,
                     (chunk: string) => {
                         // Emit each delta to the renderer in real-time
@@ -620,7 +749,7 @@ function setupIPC() {
 
             // Extract memory/facts after a successful response
             // ONLY if it's NOT a general chat (incognito mode - subcategoryId is present)
-            if (!isAborted && aiContent && apiKey && messageModel !== 'mock' && subcategoryId) {
+            if (!isAborted && aiContent && messageModel !== 'mock' && subcategoryId) {
                 const currentCid = cid;
                 const currentSubcategoryId = subcategoryId;
                 const userMsg = message;
@@ -628,7 +757,23 @@ function setupIPC() {
                 (async () => {
                     try {
                         console.log("Extracting facts for conversation:", currentCid, "Subcategory ID:", currentSubcategoryId);
-                        const facts = await extractMemories(apiKey, userMsg);
+
+                        // Fetch API Key for memory extraction (using the same model's provider)
+                        const modelInfo = await get<{ provider_id: string }>('SELECT provider_id FROM provider_models WHERE id = ?', [messageModel]);
+                        let extractionApiKey = '';
+                        if (modelInfo) {
+                            const provider = await get<{ api_key: string }>('SELECT api_key FROM model_providers WHERE id = ?', [modelInfo.provider_id]);
+                            if (provider && provider.api_key) {
+                                extractionApiKey = decryptString(provider.api_key);
+                            }
+                        }
+
+                        if (!extractionApiKey) {
+                            console.warn("No API key found for memory extraction");
+                            return;
+                        }
+
+                        const facts = await extractMemories(extractionApiKey, userMsg);
                         for (const fact of (facts as any[])) {
                             console.log("Upserting fact with subcategoryId:", currentSubcategoryId || null);
                             await upsertContext({

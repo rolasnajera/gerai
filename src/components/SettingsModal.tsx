@@ -3,30 +3,25 @@ import React, { useState, useEffect } from 'react';
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    apiKey: string;
-    setApiKey: (key: string) => void;
     systemPrompt: string;
     setSystemPrompt: (prompt: string) => void;
     onSaveGeneralContext: (context: string[]) => Promise<void>;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, setApiKey, systemPrompt, setSystemPrompt, onSaveGeneralContext }) => {
-    const [localKey, setLocalKey] = useState(apiKey);
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, systemPrompt, setSystemPrompt, onSaveGeneralContext }) => {
     const [localPrompt, setLocalPrompt] = useState(systemPrompt);
     const [contextRows, setContextRows] = useState<string[]>(['']);
 
     useEffect(() => {
-        setLocalKey(apiKey);
         setLocalPrompt(systemPrompt);
         if (isOpen && window.electron) {
             window.electron.invoke('get-general-context').then((data: any[]) => {
                 setContextRows(data.length > 0 ? data.map(d => d.content) : ['']);
             });
         }
-    }, [apiKey, systemPrompt, isOpen]);
+    }, [systemPrompt, isOpen]);
 
     const handleSave = async () => {
-        setApiKey(localKey);
         setSystemPrompt(localPrompt);
         await onSaveGeneralContext(contextRows.filter(r => r.trim() !== ''));
         onClose();
@@ -58,14 +53,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, apiKey, 
                 </div>
 
                 <div className="space-y-4">
-                    <div>
+                    <div className="hidden">
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">OpenAI API Key</label>
                         <input
                             type="password"
-                            value={localKey}
-                            onChange={(e) => setLocalKey(e.target.value)}
+                            value={""}
+                            readOnly
                             className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent dark:text-white"
-                            placeholder="sk-..."
+                            placeholder="Moved to Model Management"
                         />
                         <p className="text-xs text-gray-500 mt-1">Stored in your browser (LocalStorage/Secure).</p>
                     </div>

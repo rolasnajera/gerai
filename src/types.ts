@@ -61,3 +61,20 @@ export interface SearchResult {
     category_name?: string;
     snippet?: string;
 }
+
+export interface ModelProvider {
+    id: string;
+    name: string;
+    api_key?: string;
+    is_active: boolean;
+    config?: string;
+}
+
+export interface ProviderModel {
+    id: string;
+    provider_id: string;
+    name: string;
+    is_enabled: boolean;
+    capabilities?: string;
+    description?: string;
+}
