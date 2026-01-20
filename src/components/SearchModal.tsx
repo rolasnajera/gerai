@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SearchResult } from '../types';
+import { useDataService } from '../core/hooks/useDataService';
 
 interface SearchModalProps {
     isOpen: boolean;
@@ -9,6 +10,7 @@ interface SearchModalProps {
 }
 
 const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, query, onSelectConversation }) => {
+    const dataService = useDataService();
     const [results, setResults] = useState<SearchResult[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -17,9 +19,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, query, onSel
             if (!isOpen || !query) return;
             setLoading(true);
             try {
-                // We use the same 'search-conversations' but we know the backend currently limits to 20.
-                // If we want more, we could update the backend, but 20 is a good start for the modal too.
-                const data = await window.electron.searchConversations(query);
+                const data = await dataService.searchConversations(query);
                 setResults(data);
             } catch (err) {
                 console.error("Failed to fetch search results", err);
@@ -29,7 +29,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, query, onSel
         };
 
         fetchResults();
-    }, [isOpen, query]);
+    }, [isOpen, query, dataService]);
 
     if (!isOpen) return null;
 
@@ -67,7 +67,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, query, onSel
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {results.map((result) => (
+                            {results.map((result: SearchResult) => (
                                 <button
                                     key={result.id}
                                     onClick={() => {
@@ -88,7 +88,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, query, onSel
                                     </div>
                                     {result.snippet && (
                                         <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed line-clamp-3 italic">
-                                            "{result.snippet.split(new RegExp(`(${query})`, 'gi')).map((part, i) =>
+                                            "{result.snippet.split(new RegExp(`(${query})`, 'gi')).map((part: string, i: number) =>
                                                 part.toLowerCase() === query.toLowerCase() ? (
                                                     <span key={i} className="bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 font-bold rounded-sm px-0.5">{part}</span>
                                                 ) : part

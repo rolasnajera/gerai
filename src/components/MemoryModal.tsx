@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Context, Subcategory } from '../types';
+import { useDataService } from '../core/hooks/useDataService';
 
 interface MemoryModalProps {
     isOpen: boolean;
@@ -9,6 +10,7 @@ interface MemoryModalProps {
 }
 
 const MemoryModal: React.FC<MemoryModalProps> = ({ isOpen, onClose, subcategories, initialSubcategoryId }) => {
+    const dataService = useDataService();
     const [memories, setMemories] = useState<Context[]>([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState<number | null>(null);
@@ -18,7 +20,7 @@ const MemoryModal: React.FC<MemoryModalProps> = ({ isOpen, onClose, subcategorie
 
     const fetchMemories = async () => {
         setLoading(true);
-        const data = await window.electron.invoke('get-all-context');
+        const data = await dataService.getAllContext();
         setMemories(data);
         setLoading(false);
     };
@@ -37,14 +39,14 @@ const MemoryModal: React.FC<MemoryModalProps> = ({ isOpen, onClose, subcategorie
 
     const handleDelete = async (id: number) => {
         if (confirm('Are you sure you want to delete this memory?')) {
-            await window.electron.invoke('delete-context-item', id);
+            await dataService.deleteContextItem(id);
             fetchMemories();
         }
     };
 
     const handleSaveEdit = async () => {
         if (editingId) {
-            await window.electron.invoke('update-context-item', {
+            await dataService.updateContextItem({
                 id: editingId,
                 content: editContent,
                 subcategoryId: editSubcategoryId

@@ -1,24 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { useDataService } from '../core/hooks/useDataService';
 
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSaveGeneralContext: (context: string[]) => Promise<void>;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSaveGeneralContext }) => {
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+    const dataService = useDataService();
     const [contextRows, setContextRows] = useState<string[]>(['']);
 
     useEffect(() => {
-        if (isOpen && window.electron) {
-            window.electron.invoke('get-general-context').then((data: any[]) => {
+        if (isOpen) {
+            dataService.getGeneralContext().then((data: any[]) => {
                 setContextRows(data.length > 0 ? data.map(d => d.content) : ['']);
             });
         }
-    }, [isOpen]);
+    }, [isOpen, dataService]);
 
     const handleSave = async () => {
-        await onSaveGeneralContext(contextRows.filter(r => r.trim() !== ''));
+        await dataService.updateGeneralContext(contextRows.filter((r: string) => r.trim() !== ''));
         onClose();
     };
 
@@ -27,7 +28,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSaveGe
     };
 
     const handleRemoveContext = (index: number) => {
-        const newRows = contextRows.filter((_, i) => i !== index);
+        const newRows = contextRows.filter((_: string, i: number) => i !== index);
         setContextRows(newRows.length > 0 ? newRows : ['']);
     };
 
@@ -76,7 +77,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSaveGe
                         <p className="text-[10px] text-gray-500 dark:text-gray-400 -mt-2">Facts here are shared across ALL chats. AI will not automatically add things here; it's manual-only.</p>
 
                         <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1 custom-scrollbar">
-                            {contextRows.map((row, index) => (
+                            {contextRows.map((row: string, index: number) => (
                                 <div key={index} className="relative group">
                                     <textarea
                                         placeholder={`Enter a general fact...`}

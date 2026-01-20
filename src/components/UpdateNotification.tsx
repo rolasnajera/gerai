@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataService } from '../core/hooks/useDataService';
 
 interface UpdateInfo {
     version: string;
@@ -14,6 +15,7 @@ interface DownloadProgress {
 }
 
 export default function UpdateNotification() {
+    const dataService = useDataService();
     const [updateAvailable, setUpdateAvailable] = useState(false);
     const [updateDownloaded, setUpdateDownloaded] = useState(false);
     const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -22,37 +24,38 @@ export default function UpdateNotification() {
     const [hasSignatureError, setHasSignatureError] = useState(false);
 
     useEffect(() => {
-        if (!window.electron) return;
-
-        // Listen for update events
-        window.electron.onUpdateAvailable((info: UpdateInfo) => {
-            console.log('Update available:', info);
-            setUpdateAvailable(true);
-            setUpdateInfo(info);
-            setIsDownloading(true);
-            setHasSignatureError(false);
-        });
-
-        window.electron.onUpdateDownloadProgress((progress: DownloadProgress) => {
-            console.log('Download progress:', progress);
-            setDownloadProgress(progress);
-        });
-
-        window.electron.onUpdateDownloaded((info: UpdateInfo) => {
-            console.log('Update downloaded:', info);
-            setUpdateDownloaded(true);
-            setIsDownloading(false);
-        });
-
-        window.electron.onUpdateError((error: { message: string, isSignatureError?: boolean }) => {
-            console.error('Update error:', error);
-            setIsDownloading(false);
-            if (error.isSignatureError) {
-                setHasSignatureError(true);
+        // Listen for update events via dataService
+        const removeListeners = dataService.onUpdateEvent({
+            onAvailable: (info: UpdateInfo) => {
+                console.log('Update available:', info);
                 setUpdateAvailable(true);
+                setUpdateInfo(info);
+                setIsDownloading(true);
+                setHasSignatureError(false);
+            },
+            onProgress: (progress: DownloadProgress) => {
+                console.log('Download progress:', progress);
+                setDownloadProgress(progress);
+            },
+            onDownloaded: (info: UpdateInfo) => {
+                console.log('Update downloaded:', info);
+                setUpdateDownloaded(true);
+                setIsDownloading(false);
+            },
+            onError: (error: { message: string, isSignatureError?: boolean }) => {
+                console.error('Update error:', error);
+                setIsDownloading(false);
+                if (error.isSignatureError) {
+                    setHasSignatureError(true);
+                    setUpdateAvailable(true);
+                }
             }
         });
-    }, []);
+
+        return () => {
+            removeListeners();
+        };
+    }, [dataService]);
 
     const handleDismiss = () => {
         setUpdateAvailable(false);
@@ -61,7 +64,7 @@ export default function UpdateNotification() {
     };
 
     const handleManualInstall = () => {
-        window.electron.openReleasesPage();
+        dataService.openReleasesPage();
     };
 
     if (!updateAvailable && !updateDownloaded) {
