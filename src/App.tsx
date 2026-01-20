@@ -36,7 +36,6 @@ function App() {
 
     // Settings State
     const [modelManagementOpen, setModelManagementOpen] = useState(false);
-    const [systemPrompt, setSystemPrompt] = useState(localStorage.getItem('system_prompt') || 'You are a helpful assistant.');
     const [model, setModel] = useState(localStorage.getItem('general_model') || DEFAULT_MODEL);
     const [enabledModels, setEnabledModels] = useState<ProviderModel[]>([]);
 
@@ -54,7 +53,7 @@ function App() {
     const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
     const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null);
-    const [subcategoryInitialData, setSubcategoryInitialData] = useState<{ name: string; description: string; context: string[]; default_model?: string } | undefined>(undefined);
+    const [subcategoryInitialData, setSubcategoryInitialData] = useState<{ name: string; description: string; context: string[]; default_model?: string; system_prompt?: string } | undefined>(undefined);
 
     const [deleteSubcategoryModalOpen, setDeleteSubcategoryModalOpen] = useState(false);
     const [deletingSubcategory, setDeletingSubcategory] = useState<Subcategory | null>(null);
@@ -131,10 +130,6 @@ function App() {
             loadEnabledModels();
         }
     }, [modelManagementOpen]);
-
-    useEffect(() => {
-        localStorage.setItem('system_prompt', systemPrompt);
-    }, [systemPrompt]);
 
     // Set up streaming event listeners
     useEffect(() => {
@@ -255,7 +250,6 @@ function App() {
         const selected = conversations.find(c => c.id === cid);
         if (selected) {
             if (selected.model) setModel(selected.model);
-            if (selected.system_prompt) setSystemPrompt(selected.system_prompt);
         }
     }, [conversations, loadMessages]);
 
@@ -288,7 +282,6 @@ function App() {
 
                 const newChat = await window.electron.invoke('create-conversation', {
                     model: targetModel,
-                    systemPrompt,
                     subcategoryId
                 });
                 await loadConversations();
@@ -298,7 +291,7 @@ function App() {
                 console.error("Failed to create chat", err);
             }
         }
-    }, [model, subcategories, systemPrompt, loadConversations]);
+    }, [model, subcategories, loadConversations]);
 
     const handleSendMessage = async (text: string, selectedModel: string) => {
         // Validation check for model availability happens in the UI
@@ -327,8 +320,7 @@ function App() {
                     requestId, // Pass ID to the backend
                     conversationId: currentCid,
                     message: text,
-                    model: selectedModel,
-                    systemPrompt
+                    model: selectedModel
                 });
 
                 // Update conversation ID if it was a new chat
@@ -446,7 +438,8 @@ function App() {
                 name: subcategory.name,
                 description: subcategory.description || '',
                 context: context.map((c: any) => c.content),
-                default_model: subcategory.default_model
+                default_model: subcategory.default_model,
+                system_prompt: subcategory.system_prompt
             });
         }
         setSubcategoryModalOpen(true);
@@ -471,7 +464,7 @@ function App() {
         }
     };
 
-    const handleSaveSubcategory = async (name: string, description: string, context: string[], defaultModel?: string) => {
+    const handleSaveSubcategory = async (name: string, description: string, context: string[], defaultModel?: string, systemPrompt?: string) => {
         if (!window.electron) return;
 
         let newSubId: number | null = null;
@@ -482,7 +475,8 @@ function App() {
                 name,
                 description,
                 context,
-                defaultModel
+                defaultModel,
+                systemPrompt
             });
         } else if (selectedCategory) {
             const result = await window.electron.invoke('create-subcategory', {
@@ -490,7 +484,8 @@ function App() {
                 name,
                 description,
                 context,
-                defaultModel
+                defaultModel,
+                systemPrompt
             });
             newSubId = result.id;
         }
@@ -693,8 +688,6 @@ function App() {
             <SettingsModal
                 isOpen={settingsOpen}
                 onClose={() => setSettingsOpen(false)}
-                systemPrompt={systemPrompt}
-                setSystemPrompt={setSystemPrompt}
                 onSaveGeneralContext={handleSaveGeneralContext}
             />
 

@@ -3,26 +3,21 @@ import React, { useState, useEffect } from 'react';
 interface SettingsModalProps {
     isOpen: boolean;
     onClose: () => void;
-    systemPrompt: string;
-    setSystemPrompt: (prompt: string) => void;
     onSaveGeneralContext: (context: string[]) => Promise<void>;
 }
 
-const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, systemPrompt, setSystemPrompt, onSaveGeneralContext }) => {
-    const [localPrompt, setLocalPrompt] = useState(systemPrompt);
+const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onSaveGeneralContext }) => {
     const [contextRows, setContextRows] = useState<string[]>(['']);
 
     useEffect(() => {
-        setLocalPrompt(systemPrompt);
         if (isOpen && window.electron) {
             window.electron.invoke('get-general-context').then((data: any[]) => {
                 setContextRows(data.length > 0 ? data.map(d => d.content) : ['']);
             });
         }
-    }, [systemPrompt, isOpen]);
+    }, [isOpen]);
 
     const handleSave = async () => {
-        setSystemPrompt(localPrompt);
         await onSaveGeneralContext(contextRows.filter(r => r.trim() !== ''));
         onClose();
     };
@@ -64,15 +59,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, systemPr
                         />
                         <p className="text-xs text-gray-500 mt-1">Stored in your browser (LocalStorage/Secure).</p>
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">System Prompt</label>
-                        <textarea
-                            value={localPrompt}
-                            onChange={(e) => setLocalPrompt(e.target.value)}
-                            className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-transparent text-sm dark:text-white"
-                            rows={2}
-                        />
-                    </div>
+
 
                     {/* General Memory / Context */}
                     <div className="space-y-3 pt-4 border-t border-gray-100 dark:border-gray-700">

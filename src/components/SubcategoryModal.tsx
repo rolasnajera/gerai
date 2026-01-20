@@ -4,12 +4,13 @@ import ModelSelector from './ModelSelector';
 interface SubcategoryModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (name: string, description: string, context: string[], defaultModel?: string) => void;
+    onSave: (name: string, description: string, context: string[], defaultModel?: string, systemPrompt?: string) => void;
     initialData?: {
         name: string;
         description: string;
         context: string[];
         default_model?: string;
+        system_prompt?: string;
     };
     categoryName: string;
 }
@@ -24,6 +25,7 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
     const [defaultModel, setDefaultModel] = useState('');
+    const [systemPrompt, setSystemPrompt] = useState('');
     const [contextRows, setContextRows] = useState<string[]>(['']);
 
     useEffect(() => {
@@ -31,11 +33,13 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
             setName(initialData.name);
             setDescription(initialData.description);
             setDefaultModel(initialData.default_model || '');
+            setSystemPrompt(initialData.system_prompt || '');
             setContextRows(initialData.context.length > 0 ? initialData.context : ['']);
         } else {
             setName('');
             setDescription('');
             setDefaultModel('');
+            setSystemPrompt('');
             setContextRows(['']);
         }
     }, [initialData, isOpen]);
@@ -59,7 +63,7 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
 
     const handleSave = () => {
         if (!name.trim()) return;
-        onSave(name.trim(), description.trim(), contextRows.filter((r: string) => r.trim() !== ''), defaultModel || undefined);
+        onSave(name.trim(), description.trim(), contextRows.filter((r: string) => r.trim() !== ''), defaultModel || undefined, systemPrompt.trim() || undefined);
         onClose();
     };
 
@@ -113,9 +117,22 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
                             placeholder="Describe the intent and purpose of this subcategory..."
                             value={description}
                             onChange={(e) => setDescription(e.target.value)}
+                            rows={2}
+                            className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
+                        />
+                    </div>
+
+                    {/* System Prompt (Custom Instructions) */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Custom Instructions</label>
+                        <textarea
+                            placeholder="e.g. You are a professional translator. Always respond in Spanish."
+                            value={systemPrompt}
+                            onChange={(e) => setSystemPrompt(e.target.value)}
                             rows={3}
                             className="w-full p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none"
                         />
+                        <p className="text-xs text-gray-500 dark:text-gray-400">These instructions will guide the AI behavior in every chat within this subcategory.</p>
                     </div>
 
                     {/* Context */}

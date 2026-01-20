@@ -31,6 +31,7 @@ export interface Subcategory {
     name: string;
     description?: string;
     default_model?: string;
+    system_prompt?: string;
     created_at: string;
     updated_at: string;
 }

@@ -47,6 +47,7 @@ export function initDb(): void {
             name TEXT NOT NULL,
             description TEXT,
             default_model TEXT,
+            system_prompt TEXT,
             sort_order INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -160,6 +161,24 @@ export function initDb(): void {
                         console.error("Error adding sort_order column to subcategories:", err);
                     } else {
                         console.log("Successfully added sort_order column to subcategories.");
+                    }
+                });
+            }
+        });
+
+        // Migration to add system_prompt to subcategories if missing
+        db!.all("PRAGMA table_info(subcategories)", (err: Error | null, rows: any[]) => {
+            if (err) {
+                console.error("Error checking subcategories table info for system_prompt:", err);
+                return;
+            }
+            const hasSystemPrompt = rows.some(row => row.name === 'system_prompt');
+            if (!hasSystemPrompt) {
+                db!.run("ALTER TABLE subcategories ADD COLUMN system_prompt TEXT", (err: Error | null) => {
+                    if (err) {
+                        console.error("Error adding system_prompt column to subcategories:", err);
+                    } else {
+                        console.log("Successfully added system_prompt column to subcategories.");
                     }
                 });
             }
