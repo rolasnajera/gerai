@@ -15,8 +15,10 @@ import UpdateNotification from './components/UpdateNotification';
 import { Message, Conversation, Category, Subcategory, ProviderModel } from './types';
 
 import { DEFAULT_MODEL } from './constants/models';
+import { useDataService } from './core/hooks/useDataService';
 
 function App() {
+    const dataService = useDataService();
     const [categories, setCategories] = useState<Category[]>([]);
     const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
     const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -106,21 +108,19 @@ function App() {
     };
 
     const loadEnabledModels = async () => {
-        if (window.electron) {
-            const providers = await window.electron.invoke('get-providers');
-            const activeProviderIds = providers.filter((p: any) => p.is_active).map((p: any) => p.id);
+        const providers = await dataService.getProviders();
+        const activeProviderIds = providers.filter((p: any) => p.is_active).map((p: any) => p.id);
 
-            let allEnabledModels: ProviderModel[] = [];
-            for (const pId of activeProviderIds) {
-                const pModels = await window.electron.invoke('get-provider-models', pId);
-                allEnabledModels = [...allEnabledModels, ...pModels.filter((m: any) => m.is_enabled)];
-            }
-            setEnabledModels(allEnabledModels);
+        let allEnabledModels: ProviderModel[] = [];
+        for (const pId of activeProviderIds) {
+            const pModels = await dataService.getProviderModels(pId);
+            allEnabledModels = [...allEnabledModels, ...pModels.filter((m: any) => m.is_enabled)];
+        }
+        setEnabledModels(allEnabledModels);
 
-            // If current model is not in enabled models, fallback
-            if (allEnabledModels.length > 0 && !allEnabledModels.some(m => m.id === model)) {
-                setModel(allEnabledModels[0].id);
-            }
+        // If the current model is not in enabled models, fallback
+        if (allEnabledModels.length > 0 && !allEnabledModels.some(m => m.id === model)) {
+            setModel(allEnabledModels[0].id);
         }
     };
 
@@ -133,114 +133,93 @@ function App() {
 
     // Set up streaming event listeners
     useEffect(() => {
-        if (!window.electron) return;
-
-        const handleStreamChunk = (data: { requestId: string, chunk: string }) => {
-            if (data.requestId === currentRequestId) {
-                setStreamingMessage(prev => prev + data.chunk);
-            }
-        };
-
-        const handleStreamComplete = (data: { requestId: string, conversationId: number, content: string }) => {
-            if (data.requestId === currentRequestId) {
-                setIsStreaming(false);
-                setStreamingMessage('');
-                setCurrentRequestId(null);
-                setIsLoading(false);
-
-                // Add the complete message to the messages list
-                const aiMsg: Message = {
-                    id: Date.now(),
-                    conversation_id: data.conversationId,
-                    role: 'assistant',
-                    content: data.content,
-                    created_at: new Date().toISOString()
-                };
-                setMessages(prev => [...prev, aiMsg]);
-
-                // Reload conversations to update title if needed
-                loadConversations();
-            }
-        };
-
-        const handleStreamError = (data: { requestId: string, error: string }) => {
-            if (data.requestId === currentRequestId) {
-                setIsStreaming(false);
-                setStreamingMessage('');
-                setCurrentRequestId(null);
-                setIsLoading(false);
-
-                // Ignore if aborted by the user
-                if (data.error && data.error.includes('Aborted by user')) {
-                    return;
+        const removeListeners = dataService.onStreamEvent({
+            onChunk: (data) => {
+                if (data && data.requestId === currentRequestId) {
+                    setStreamingMessage(prev => prev + data.chunk);
                 }
+            },
+            onComplete: (data) => {
+                if (data && data.requestId === currentRequestId) {
+                    setIsStreaming(false);
+                    setStreamingMessage('');
+                    setCurrentRequestId(null);
+                    setIsLoading(false);
 
-                // Add an error message
-                const errorMsg: Message = {
-                    id: Date.now(),
-                    conversation_id: currentCid || 0,
-                    role: 'assistant',
-                    content: "Error: " + data.error,
-                    created_at: new Date().toISOString()
-                };
-                setMessages(prev => [...prev, errorMsg]);
+                    const aiMsg: Message = {
+                        id: Date.now(),
+                        conversation_id: data.conversationId,
+                        role: 'assistant',
+                        content: data.content,
+                        created_at: new Date().toISOString()
+                    };
+                    setMessages(prev => [...prev, aiMsg]);
+                    loadConversations();
+                }
+            },
+            onError: (data) => {
+                if (data && data.requestId === currentRequestId) {
+                    setIsStreaming(false);
+                    setStreamingMessage('');
+                    setCurrentRequestId(null);
+                    setIsLoading(false);
+
+                    if (data.error && data.error.includes('Aborted by user')) {
+                        return;
+                    }
+
+                    const errorMsg: Message = {
+                        id: Date.now(),
+                        conversation_id: currentCid || 0,
+                        role: 'assistant',
+                        content: "Error: " + data.error,
+                        created_at: new Date().toISOString()
+                    };
+                    setMessages(prev => [...prev, errorMsg]);
+                }
             }
-        };
-
-        const chunkListener = window.electron.on('stream-chunk', handleStreamChunk);
-        const completeListener = window.electron.on('stream-complete', handleStreamComplete);
-        const errorListener = window.electron.on('stream-error', handleStreamError);
+        });
 
         return () => {
-            window.electron.removeListener('stream-chunk', chunkListener);
-            window.electron.removeListener('stream-complete', completeListener);
-            window.electron.removeListener('stream-error', errorListener);
+            removeListeners();
         };
     }, [currentRequestId, currentCid, messages.length, conversations.length]);
 
     const loadCategories = React.useCallback(async () => {
-        if (window.electron) {
-            try {
-                const cats = await window.electron.invoke('get-categories');
-                setCategories(cats);
-            } catch (err) {
-                console.error("Failed to load categories", err);
-            }
+        try {
+            const cats = await dataService.getCategories();
+            setCategories(cats);
+        } catch (err) {
+            console.error("Failed to load categories", err);
         }
-    }, []);
+    }, [dataService]);
 
     const loadSubcategories = React.useCallback(async () => {
-        if (window.electron) {
-            try {
-                const subs = await window.electron.invoke('get-subcategories');
-                setSubcategories(subs);
-            } catch (err) {
-                console.error("Failed to load subcategories", err);
-            }
+        try {
+            const subs = await dataService.getSubcategories();
+            setSubcategories(subs);
+        } catch (err) {
+            console.error("Failed to load subcategories", err);
         }
-    }, []);
+    }, [dataService]);
 
     const loadConversations = React.useCallback(async () => {
-        if (window.electron) {
-            try {
-                const convs = await window.electron.invoke('get-conversations');
-                setConversations(convs);
-            } catch (err) {
-                console.error("Failed to load conversations", err);
-            }
+        try {
+            const convs = await dataService.getConversations();
+            setConversations(convs);
+        } catch (err) {
+            console.error("Failed to load conversations", err);
         }
-    }, []);
+    }, [dataService]);
 
     const loadMessages = React.useCallback(async (cid: number) => {
-        if (window.electron) {
-            try {
-                const msgs = await window.electron.invoke('get-messages', cid);
-                setMessages(msgs);
-            } catch (err) {
-                console.error("Failed to load messages", err);
-            }
+        try {
+            const msgs = await dataService.getMessages(cid);
+            setMessages(msgs);
+        } catch (err) {
+            console.error("Failed to load messages", err);
         }
-    }, []);
+    }, [dataService]);
 
     const handleSelectConversation = React.useCallback((cid: number) => {
         setCurrentCid(cid);
@@ -264,34 +243,32 @@ function App() {
     };
 
     const handleCreateNewChat = React.useCallback(async (subcategoryId?: number) => {
-        if (window.electron) {
-            try {
-                // If in a subcategory, check if it has a default model
-                let targetModel = model;
-                if (subcategoryId) {
-                    const sub = subcategories.find(s => s.id === subcategoryId);
-                    if (sub && sub.default_model) {
-                        targetModel = sub.default_model;
-                        setModel(targetModel); // Sync UI
-                    }
-                } else {
-                    // General chat: use persisted preference
-                    targetModel = localStorage.getItem('general_model') || DEFAULT_MODEL;
-                    setModel(targetModel);
+        try {
+            // If in a subcategory, check if it has a default model
+            let targetModel = model;
+            if (subcategoryId) {
+                const sub = subcategories.find(s => s.id === subcategoryId);
+                if (sub && sub.default_model) {
+                    targetModel = sub.default_model;
+                    setModel(targetModel); // Sync UI
                 }
-
-                const newChat = await window.electron.invoke('create-conversation', {
-                    model: targetModel,
-                    subcategoryId
-                });
-                await loadConversations();
-                setCurrentCid(newChat.id);
-                setMessages([]); // New chat empty
-            } catch (err) {
-                console.error("Failed to create chat", err);
+            } else {
+                // General chat: use persisted preference
+                targetModel = localStorage.getItem('general_model') || DEFAULT_MODEL;
+                setModel(targetModel);
             }
+
+            const newChat = await dataService.createConversation({
+                model: targetModel,
+                subcategoryId
+            });
+            await loadConversations();
+            setCurrentCid(newChat.id);
+            setMessages([]); // New chat empty
+        } catch (err) {
+            console.error("Failed to create chat", err);
         }
-    }, [model, subcategories, loadConversations]);
+    }, [model, subcategories, loadConversations, dataService]);
 
     const handleSendMessage = async (text: string, selectedModel: string) => {
         // Validation check for model availability happens in the UI
@@ -314,51 +291,49 @@ function App() {
         };
         setMessages(prev => [...prev, userMsg]);
 
-        if (window.electron) {
-            try {
-                const response = await window.electron.invoke('send-message', {
-                    requestId, // Pass ID to the backend
-                    conversationId: currentCid,
-                    message: text,
-                    model: selectedModel
-                });
+        try {
+            const response = await dataService.sendMessage({
+                requestId, // Pass ID to the backend
+                conversationId: currentCid,
+                message: text,
+                model: selectedModel
+            });
 
-                // Update conversation ID if it was a new chat
-                if (!currentCid && response.conversationId) {
-                    setCurrentCid(response.conversationId);
-                    loadConversations();
-                }
+            // Update conversation ID if it was a new chat
+            if (!currentCid && response.conversationId) {
+                setCurrentCid(response.conversationId);
+                loadConversations();
+            }
 
-                if (response.aborted) {
-                    setIsLoading(false);
-                    setIsStreaming(false);
-                    setStreamingMessage('');
-                    setCurrentRequestId(null);
-                    return;
-                }
-            } catch (err: any) {
-                console.error(err);
+            if (response.aborted) {
                 setIsLoading(false);
                 setIsStreaming(false);
                 setStreamingMessage('');
                 setCurrentRequestId(null);
-
-                const errorMsg: Message = {
-                    id: Date.now(),
-                    conversation_id: currentCid || 0,
-                    role: 'assistant',
-                    content: "Error: " + err.message,
-                    created_at: new Date().toISOString()
-                };
-                setMessages(prev => [...prev, errorMsg]);
+                return;
             }
+        } catch (err: any) {
+            console.error(err);
+            setIsLoading(false);
+            setIsStreaming(false);
+            setStreamingMessage('');
+            setCurrentRequestId(null);
+
+            const errorMsg: Message = {
+                id: Date.now(),
+                conversation_id: currentCid || 0,
+                role: 'assistant',
+                content: "Error: " + err.message,
+                created_at: new Date().toISOString()
+            };
+            setMessages(prev => [...prev, errorMsg]);
         }
     };
 
     const handleCancelMessage = async () => {
-        if (!currentRequestId || !window.electron) return;
+        if (!currentRequestId) return;
         try {
-            await window.electron.invoke('cancel-message', currentRequestId);
+            await dataService.cancelMessage(currentRequestId);
         } catch (err: any) {
             console.error('Cancel error:', err);
         }
@@ -366,14 +341,12 @@ function App() {
 
     const handleDeleteChat = React.useCallback(async (cid: number) => {
         if (!confirm("Are you sure you want to delete this chat?")) return;
-        if (window.electron) {
-            await window.electron.invoke('delete-conversation', cid);
-            if (currentCid === cid) {
-                setCurrentCid(null);
-                setMessages([]);
-            }
-            loadConversations();
+        await dataService.deleteConversation(cid);
+        if (currentCid === cid) {
+            setCurrentCid(null);
+            setMessages([]);
         }
+        loadConversations();
     }, [currentCid, loadConversations]);
 
     const handleRenameChat = React.useCallback((cid: number, oldTitle: string) => {
@@ -384,13 +357,11 @@ function App() {
 
     const handleFinishRename = async (newTitle: string) => {
         if (renameCid && newTitle) {
-            if (window.electron) {
-                try {
-                    await window.electron.invoke('rename-conversation', { id: renameCid, title: newTitle });
-                    await loadConversations();
-                } catch (err) {
-                    console.error("Failed to rename conversation", err);
-                }
+            try {
+                await dataService.renameConversation({ id: renameCid, title: newTitle });
+                await loadConversations();
+            } catch (err) {
+                console.error("Failed to rename conversation", err);
             }
         }
         setRenameModalOpen(false);
@@ -407,9 +378,9 @@ function App() {
     }, [conversations]);
 
     const handleConfirmMove = async (subcategoryId: number | null) => {
-        if (moveCid && window.electron) {
+        if (moveCid) {
             try {
-                await window.electron.invoke('move-conversation', { id: moveCid, subcategoryId });
+                await dataService.moveConversation({ id: moveCid, subcategoryId });
                 await loadConversations();
             } catch (err) {
                 console.error("Failed to move conversation", err);
@@ -432,16 +403,14 @@ function App() {
         setEditingSubcategory(subcategory);
         setSelectedCategory(categories.find(c => c.id === subcategory.category_id) || null);
 
-        if (window.electron) {
-            const context = await window.electron.invoke('get-subcategory-context', subcategory.id);
-            setSubcategoryInitialData({
-                name: subcategory.name,
-                description: subcategory.description || '',
-                context: context.map((c: any) => c.content),
-                default_model: subcategory.default_model,
-                system_prompt: subcategory.system_prompt
-            });
-        }
+        const context = await dataService.getSubcategoryContext(subcategory.id);
+        setSubcategoryInitialData({
+            name: subcategory.name,
+            description: subcategory.description || '',
+            context: context.map((c: any) => c.content),
+            default_model: subcategory.default_model,
+            system_prompt: subcategory.system_prompt
+        });
         setSubcategoryModalOpen(true);
     }, [categories]);
 
@@ -451,8 +420,8 @@ function App() {
     }, []);
 
     const handleConfirmDeleteSubcategory = async () => {
-        if (deletingSubcategory && window.electron) {
-            await window.electron.invoke('delete-subcategory', deletingSubcategory.id);
+        if (deletingSubcategory) {
+            await dataService.deleteSubcategory(deletingSubcategory.id);
             await loadSubcategories();
             await loadConversations();
             // If the current chat was in this subcategory, it's gone
@@ -465,12 +434,10 @@ function App() {
     };
 
     const handleSaveSubcategory = async (name: string, description: string, context: string[], defaultModel?: string, systemPrompt?: string) => {
-        if (!window.electron) return;
-
         let newSubId: number | null = null;
 
         if (editingSubcategory) {
-            await window.electron.invoke('update-subcategory', {
+            await dataService.updateSubcategory({
                 id: editingSubcategory.id,
                 name,
                 description,
@@ -479,7 +446,7 @@ function App() {
                 systemPrompt
             });
         } else if (selectedCategory) {
-            const result = await window.electron.invoke('create-subcategory', {
+            const result = await dataService.createSubcategory({
                 categoryId: selectedCategory.id,
                 name,
                 description,
@@ -499,10 +466,6 @@ function App() {
         }
     };
 
-    const handleSaveGeneralContext = async (context: string[]) => {
-        if (!window.electron) return;
-        await window.electron.invoke('update-general-context', context);
-    };
 
     // Category Handlers
     const handleAddCategory = React.useCallback(() => {
@@ -529,8 +492,8 @@ function App() {
     }, []);
 
     const handleConfirmDeleteCategory = async () => {
-        if (deletingCategory && window.electron) {
-            await window.electron.invoke('delete-category', deletingCategory.id);
+        if (deletingCategory) {
+            await dataService.deleteCategory(deletingCategory.id);
             await loadData(); // Reload everything since deleting a category deletes subcategories and chats
             setCurrentCid(null);
             setMessages([]);
@@ -538,12 +501,10 @@ function App() {
     };
 
     const handleSaveCategory = async (name: string, icon: string, description: string) => {
-        if (!window.electron) return;
-
         let newCat: Category | null = null;
 
         if (editingCategory) {
-            await window.electron.invoke('update-category', {
+            await dataService.updateCategory({
                 id: editingCategory.id,
                 name,
                 icon,
@@ -555,7 +516,7 @@ function App() {
             const maxSort = categories.length > 0 ? Math.max(...categories.map(c => c.sort_order)) : 0;
             const sortOrder = maxSort + 1;
 
-            const result = await window.electron.invoke('create-category', {
+            const result = await dataService.createCategory({
                 name,
                 icon,
                 description,
@@ -571,7 +532,6 @@ function App() {
     };
 
     const handleReorderCategories = async (direction: 'up' | 'down', category: Category) => {
-        if (!window.electron) return;
         const index = categories.findIndex(c => c.id === category.id);
         if (index === -1) return;
 
@@ -584,18 +544,16 @@ function App() {
             return;
         }
 
-        await window.electron.invoke('reorder-categories', newCategories.map(c => c.id));
+        await dataService.reorderCategories(newCategories.map(c => c.id));
         await loadCategories();
     };
 
     const handleSortCategoriesAlphabetically = async () => {
-        if (!window.electron) return;
-        await window.electron.invoke('sort-categories-alphabetically');
+        await dataService.sortCategoriesAlphabetically();
         await loadCategories();
     };
 
     const handleReorderSubcategories = async (direction: 'up' | 'down', subcategory: Subcategory) => {
-        if (!window.electron) return;
         const subId = subcategory.id;
         const catId = subcategory.category_id;
         const siblings = subcategories.filter(s => s.category_id === catId);
@@ -611,7 +569,7 @@ function App() {
             return;
         }
 
-        await window.electron.invoke('reorder-subcategories', newSiblings.map(s => s.id));
+        await dataService.reorderSubcategories(newSiblings.map(s => s.id));
         await loadSubcategories();
     };
 
@@ -688,7 +646,6 @@ function App() {
             <SettingsModal
                 isOpen={settingsOpen}
                 onClose={() => setSettingsOpen(false)}
-                onSaveGeneralContext={handleSaveGeneralContext}
             />
 
             <ModelManagementModal

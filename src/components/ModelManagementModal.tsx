@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ModelProvider, ProviderModel } from '../types';
 import ProviderIcon from './ProviderIcon';
+import { useDataService } from '../core/hooks/useDataService';
 
 interface ModelManagementModalProps {
     isOpen: boolean;
@@ -8,6 +9,7 @@ interface ModelManagementModalProps {
 }
 
 const ModelManagementModal: React.FC<ModelManagementModalProps> = ({ isOpen, onClose }) => {
+    const dataService = useDataService();
     const [providers, setProviders] = useState<ModelProvider[]>([]);
     const [selectedProviderId, setSelectedProviderId] = useState<string>('openai');
     const [models, setModels] = useState<ProviderModel[]>([]);
@@ -29,52 +31,44 @@ const ModelManagementModal: React.FC<ModelManagementModalProps> = ({ isOpen, onC
     }, [selectedProviderId]);
 
     const loadProviders = async () => {
-        if (window.electron) {
-            const data = await window.electron.invoke('get-providers');
-            setProviders(data);
-            if (data.length > 0 && !selectedProviderId) {
-                setSelectedProviderId(data[0].id);
-            }
+        const data = await dataService.getProviders();
+        setProviders(data);
+        if (data.length > 0 && !selectedProviderId) {
+            setSelectedProviderId(data[0].id);
         }
     };
 
     const loadProviderData = async (providerId: string) => {
-        if (window.electron) {
-            const pModels = await window.electron.invoke('get-provider-models', providerId);
-            setModels(pModels);
+        const pModels = await dataService.getProviderModels(providerId);
+        setModels(pModels);
 
-            // We don't fetch the API key back in plain text for security usually, 
-            // but the prototype shows a masked key. For simplicity, we'll keep it empty
-            // unless the user wants to update it.
-            setApiKey('');
-        }
+        // We don't fetch the API key back in plain text for security usually, 
+        // but the prototype shows a masked key. For simplicity, we'll keep it empty
+        // unless the user wants to update it.
+        setApiKey('');
     };
 
     const handleToggleModel = async (modelId: string, isEnabled: boolean) => {
-        if (window.electron) {
-            const success = await window.electron.invoke('toggle-provider-model', { id: modelId, isEnabled });
-            if (success) {
-                setModels(prev => prev.map(m => m.id === modelId ? { ...m, is_enabled: isEnabled } : m));
-            }
+        const success = await dataService.toggleProviderModel({ id: modelId, isEnabled });
+        if (success) {
+            setModels(prev => prev.map(m => m.id === modelId ? { ...m, is_enabled: isEnabled } : m));
         }
     };
 
     const handleUpdateApiKey = async () => {
         if (!apiKey.trim()) return;
         setIsValidating(true);
-        if (window.electron) {
-            const success = await window.electron.invoke('update-provider', {
-                id: selectedProviderId,
-                apiKey: apiKey,
-                isActive: true
-            });
-            if (success) {
-                setApiKey('');
-                // Refresh models
-                await window.electron.invoke('fetch-remote-models', selectedProviderId);
-                loadProviderData(selectedProviderId);
-                loadProviders();
-            }
+        const success = await dataService.updateProvider({
+            id: selectedProviderId,
+            apiKey: apiKey,
+            isActive: true
+        });
+        if (success) {
+            setApiKey('');
+            // Refresh models
+            await dataService.fetchRemoteModels(selectedProviderId);
+            loadProviderData(selectedProviderId);
+            loadProviders();
         }
         setIsValidating(false);
     };
@@ -82,17 +76,15 @@ const ModelManagementModal: React.FC<ModelManagementModalProps> = ({ isOpen, onC
     const handleRemoveApiKey = async () => {
         if (!window.confirm('Are you sure you want to remove the API key for this provider? This will disable all models for this provider.')) return;
         setIsValidating(true);
-        if (window.electron) {
-            const success = await window.electron.invoke('update-provider', {
-                id: selectedProviderId,
-                apiKey: null,
-                isActive: false
-            });
-            if (success) {
-                setApiKey('');
-                loadProviderData(selectedProviderId);
-                loadProviders();
-            }
+        const success = await dataService.updateProvider({
+            id: selectedProviderId,
+            apiKey: null,
+            isActive: false
+        });
+        if (success) {
+            setApiKey('');
+            loadProviderData(selectedProviderId);
+            loadProviders();
         }
         setIsValidating(false);
     };
