@@ -476,7 +476,12 @@ function setupIPC() {
 
     ipcMain.handle('get-providers', async () => {
         try {
-            return await all('SELECT * FROM model_providers ORDER BY name ASC');
+            const providers = await all('SELECT * FROM model_providers ORDER BY name ASC');
+            // Hide mock provider in production
+            if (app.isPackaged) {
+                return providers.filter((p: any) => p.id !== 'mock');
+            }
+            return providers;
         } catch (err) {
             console.error(err);
             return [];
@@ -521,7 +526,12 @@ function setupIPC() {
 
     ipcMain.handle('get-provider-models', async (_event: IpcMainInvokeEvent, providerId: string) => {
         try {
-            return await all('SELECT * FROM provider_models WHERE provider_id = ? ORDER BY name ASC', [providerId]);
+            const models = await all('SELECT * FROM provider_models WHERE provider_id = ? ORDER BY name ASC', [providerId]);
+            // Hide mock models in production
+            if (app.isPackaged && providerId === 'mock') {
+                return [];
+            }
+            return models;
         } catch (err) {
             console.error(err);
             return [];
