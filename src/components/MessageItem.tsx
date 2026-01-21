@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { marked } from 'marked';
 import { Message } from '../types';
+import CitationsList from './CitationsList';
 
 interface MessageItemProps {
     msg: Message;
@@ -39,6 +40,11 @@ const MessageItem: React.FC<MessageItemProps> = ({ msg }) => {
                 className={`${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700'} px-4 py-3 rounded-2xl max-w-[90%] prose dark:prose-invert shadow-sm`}
                 dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) as string }}
             />
+            {msg.role === 'assistant' && msg.citations && msg.citations.length > 0 && (
+                <div className="max-w-[90%] w-full">
+                    <CitationsList citations={msg.citations} />
+                </div>
+            )}
             {msg.role === 'assistant' && (
                 <div className="flex items-center gap-2 mt-2 px-1">
                     <button

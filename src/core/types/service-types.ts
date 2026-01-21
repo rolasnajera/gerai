@@ -52,6 +52,7 @@ export interface StreamEventHandlers {
     requestId: string;
     conversationId: number;
     content: string;
+    citations?: any[];
   }) => void;
   onError: (data: {
     requestId: string;

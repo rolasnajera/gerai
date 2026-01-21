@@ -153,6 +153,7 @@ function App() {
                         conversation_id: data.conversationId,
                         role: 'assistant',
                         content: data.content,
+                        citations: data.citations,
                         created_at: new Date().toISOString()
                     };
                     

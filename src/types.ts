@@ -1,9 +1,17 @@
+export interface Citation {
+    url: string;
+    title: string;
+    start_index: number;
+    end_index: number;
+}
+
 export interface Message {
     id: number;
     conversation_id: number;
     role: 'user' | 'assistant' | 'system';
     content: string;
     model?: string;
+    citations?: Citation[];
     created_at: string;
 }
 

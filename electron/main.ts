@@ -421,7 +421,11 @@ function setupIPC() {
     ipcMain.handle('get-messages', async (_event: IpcMainInvokeEvent, cid: number) => {
         try {
             if (!cid) return [];
-            return await all('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC', [cid]);
+            const messages = await all('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC', [cid]);
+            return messages.map(msg => ({
+                ...msg,
+                citations: msg.citations ? JSON.parse(msg.citations) : undefined
+            }));
         } catch (err) {
             console.error(err);
             return [];
@@ -744,6 +748,7 @@ function setupIPC() {
             let aiContent = aiResponse.output_text;
             const newResponseId = aiResponse.response_id;
             const isAborted = aiResponse.aborted;
+            const citations = aiResponse.citations;
 
             if (isAborted) {
                 aiContent += (aiContent ? "\n\n" : "") + "[Response canceled]";
@@ -751,7 +756,13 @@ function setupIPC() {
 
             // 5. Save AI Msg (even if aborted, if there's content or it was aborted)
             if (aiContent || isAborted) {
-                await run('INSERT INTO messages (conversation_id, role, content, model) VALUES (?, ?, ?, ?)', [cid, 'assistant', aiContent || '[Response canceled]', messageModel]);
+                await run('INSERT INTO messages (conversation_id, role, content, model, citations) VALUES (?, ?, ?, ?, ?)', [
+                    cid,
+                    'assistant',
+                    aiContent || '[Response canceled]',
+                    messageModel,
+                    citations ? JSON.stringify(citations) : null
+                ]);
             }
 
             // 6. Update Conversation State
@@ -776,7 +787,8 @@ function setupIPC() {
                     conversationId: cid,
                     content: aiContent,
                     response_id: newResponseId,
-                    aborted: isAborted
+                    aborted: isAborted,
+                    citations: citations
                 });
             }
 

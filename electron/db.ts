@@ -138,6 +138,17 @@ export function initDb(): void {
             }
         });
 
+        // Migration to add citations to messages if missing
+        db!.all("PRAGMA table_info(messages)", (err: Error | null, rows: any[]) => {
+            if (err) return;
+            const hasCitations = rows.some(row => row.name === 'citations');
+            if (!hasCitations) {
+                db!.run("ALTER TABLE messages ADD COLUMN citations TEXT", (err: Error | null) => {
+                    if (!err) console.log("Added citations column to messages");
+                });
+            }
+        });
+
         // Migration to add default_model to subcategories if missing
         db!.all("PRAGMA table_info(subcategories)", (err: Error | null, rows: any[]) => {
             if (err) {
