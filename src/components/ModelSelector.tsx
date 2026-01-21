@@ -1,27 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AVAILABLE_MODELS, Model } from '../constants/models';
 import ProviderIcon from './ProviderIcon';
+import { ProviderModel } from '../types';
 
 interface ModelSelectorProps {
     value: string;
     onChange: (value: string) => void;
     placeholder?: string;
     showGeneralDefault?: boolean;
+    models?: ProviderModel[];
 }
 
 const ModelSelector: React.FC<ModelSelectorProps> = ({
     value,
     onChange,
     placeholder = "Select a model...",
-    showGeneralDefault = true
+    showGeneralDefault = true,
+    models: dynamicModels
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const selectedModel = AVAILABLE_MODELS.find(m => m.id === value);
+    const displayModels = dynamicModels ? dynamicModels.map(m => ({
+        id: m.id,
+        name: m.name,
+        provider: m.provider_id as any
+    })) : AVAILABLE_MODELS;
 
-    const filteredModels = AVAILABLE_MODELS.filter(m =>
+    const selectedModel = displayModels.find(m => m.id === value);
+
+    const filteredModels = displayModels.filter(m =>
         m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.id.toLowerCase().includes(searchQuery.toLowerCase())
     );

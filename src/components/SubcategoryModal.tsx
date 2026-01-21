@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import ModelSelector from './ModelSelector';
+import { ProviderModel } from '../types';
 
 interface SubcategoryModalProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ interface SubcategoryModalProps {
         system_prompt?: string;
     };
     categoryName: string;
+    enabledModels?: ProviderModel[];
 }
 
 const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
@@ -20,7 +22,8 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
     onClose,
     onSave,
     initialData,
-    categoryName
+    categoryName,
+    enabledModels
 }) => {
     const [name, setName] = useState('');
     const [description, setDescription] = useState('');
@@ -106,6 +109,7 @@ const SubcategoryModal: React.FC<SubcategoryModalProps> = ({
                         <ModelSelector
                             value={defaultModel}
                             onChange={setDefaultModel}
+                            models={enabledModels}
                         />
                         <p className="text-xs text-gray-500 dark:text-gray-400">Every new chat in this subcategory will start with this model</p>
                     </div>

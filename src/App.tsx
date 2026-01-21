@@ -675,6 +675,7 @@ function App() {
                 onSave={handleSaveSubcategory}
                 categoryName={selectedCategory?.name || ''}
                 initialData={subcategoryInitialData}
+                enabledModels={enabledModels}
             />
 
             <DeleteSubcategoryModal
