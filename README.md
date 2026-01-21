@@ -6,21 +6,21 @@
 
 ## 🚀 Features
 
-*   **Mock Model for Development**: Use the `Mock Model` to test UI and streaming without incurring OpenAI API costs. It's the default in development.
-*   **OpenAI Models**: Choose between `gpt-5-nano`, `gpt-5-mini`, and `gpt-5` (via OpenAI API).
-*   **Privacy‑First**: Conversation history is stored locally (SQLite in your OS user data folder).
-*   **Bring Your Own Key (BYOK)**: Enter your OpenAI API key in‑app (stored locally via secure storage/LocalStorage).
-*   **Native Performance**: Electron + Vite dev server for instant feedback; bundled via `tsup` and packaged with `electron‑builder`.
-*   **Minimalist UI**: Distraction‑free chat with a configurable system prompt.
+- **Mock Model for Development**: Use the `Mock Model` to test UI and streaming without incurring OpenAI API costs. It's the default in development.
+- **OpenAI Models**: Choose between `gpt-5-nano`, `gpt-5-mini`, and `gpt-5` (via OpenAI API).
+- **Privacy‑First**: Conversation history is stored locally (SQLite in your OS user data folder).
+- **Bring Your Own Key (BYOK)**: Enter your OpenAI API key in‑app (stored locally via secure storage/LocalStorage).
+- **Native Performance**: Electron + Vite dev server for instant feedback; bundled via `tsup` and packaged with `electron‑builder`.
+- **Minimalist UI**: Distraction‑free chat with a configurable system prompt.
 
 ## 🛠️ Tech Stack
 
-*   **Runtime**: [Electron](https://www.electronjs.org/)
-*   **Frontend**: [React](https://react.dev/), [Vite](https://vitejs.dev/), [Tailwind CSS](https://tailwindcss.com/)
-*   **Language/Build**: [TypeScript](https://www.typescriptlang.org/), [tsup](https://tsup.egoist.dev/)
-*   **Packaging**: [electron‑builder](https://www.electron.build/)
-*   **Database**: [SQLite](https://www.sqlite.org/index.html) (stored in Electron `app.getPath('userData')`)
-*   **Testing**: [Vitest](https://vitest.dev/) (Unit/Component), [Playwright](https://playwright.dev/) (E2E)
+- **Runtime**: [Electron](https://www.electronjs.org/)
+- **Frontend**: [React](https://react.dev/), [Vite](https://vitejs.dev/), [Tailwind CSS](https://tailwindcss.com/)
+- **Language/Build**: [TypeScript](https://www.typescriptlang.org/), [tsup](https://tsup.egoist.dev/)
+- **Packaging**: [electron‑builder](https://www.electron.build/)
+- **Database**: [SQLite](https://www.sqlite.org/index.html) (stored in Electron `app.getPath('userData')`)
+- **Testing**: [Vitest](https://vitest.dev/) (Unit/Component), [Playwright](https://playwright.dev/) (E2E)
 
 ## 📦 Installation
 
@@ -52,12 +52,14 @@ Once installed, GERAI will automatically check for updates and notify you when n
 To build and run GERAI locally, you'll need [Node.js](https://nodejs.org/) (v18+ recommended) and [Git](https://git-scm.com/) installed.
 
 1.  **Clone the repository**
+
     ```bash
     git clone https://github.com/rolasnajera/gerai.git
     cd gerai
     ```
 
 2.  **Install dependencies**
+
     ```bash
     npm install
     ```
@@ -76,6 +78,7 @@ To create a distributable application for your OS (macOS, Windows, Linux):
 ```bash
 npm run dist
 ```
+
 The packaged installers/binaries will be located in the `release/` folder.
 
 ## 🧪 Testing
@@ -83,6 +86,7 @@ The packaged installers/binaries will be located in the `release/` folder.
 The project uses **Vitest** for unit and component testing, and **Playwright** for end-to-end (E2E) integration testing.
 
 ### Unit & Component Tests
+
 Unit tests are used for testing individual functions and React components. They are located alongside the source code with the `.test.ts` or `.test.tsx` extension.
 
 - **Run unit tests**:
@@ -95,6 +99,7 @@ Unit tests are used for testing individual functions and React components. They 
   ```
 
 ### End-to-End (Integration) Tests
+
 E2E tests ensure that the entire application works as expected by launching the Electron app and simulating user interactions. These tests are located in the `e2e/` directory.
 
 - **Run E2E tests**:
@@ -103,6 +108,7 @@ E2E tests ensure that the entire application works as expected by launching the 
   ```
 
 ### Adding New Tests
+
 - **Unit Tests**: Create a file named `filename.test.ts` (for logic) or `ComponentName.test.tsx` (for React components) in the same directory as the file you are testing.
 - **E2E Tests**: Create a new `.spec.ts` file in the `e2e/` directory. See `e2e/example.spec.ts` for a reference implementation.
 
@@ -116,16 +122,17 @@ This project uses **GitHub Actions** for automated releases. To start a new rele
     git tag v0.0.1
     ```
 3.  **Push the tag**:
-    ```bash
+    `bash
     git push origin v0.0.1
-    ```
-GitHub Actions will automatically build the application for **macOS** and upload the binaries to a new GitHub Release.
+    `
+    GitHub Actions will automatically build the application for **macOS** and upload the binaries to a new GitHub Release.
 
 If you only want a production build without packaging:
 
 ```bash
 npm run build
 ```
+
 This generates the renderer bundle in `dist/` and the Electron main/preload bundles in `dist-electron/`.
 
 ## ⚙️ Configuration Notes
@@ -141,4 +148,14 @@ Contributions are welcome! Please read our [CONTRIBUTING.md](CONTRIBUTING.md) fo
 
 ## 📄 License
 
-This project is licensed under the [MIT License](LICENSE). © 2025 Rolas Najera.
+This repository contains the **Open Source Core** of GERAI, which is licensed under the [MIT License](LICENSE).
+
+For users and organizations needing advanced features, we offer **GERAI Pro**, which includes:
+
+- **Cloud Sync**: Firestore-backed synchronization across devices.
+- **Teams**: Shared workspaces and collaborative features.
+- **Mobile App**: Native iOS and Android applications.
+
+The **Core UI** and **Local Logic** remain open source (MIT). The **Sync Engine** and **Mobile UI** are proprietary.
+
+© 2025 Rolas Najera.
