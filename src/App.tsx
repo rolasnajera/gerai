@@ -35,6 +35,7 @@ function App() {
     const [isStreaming, setIsStreaming] = useState(false);
     const [streamingMessage, setStreamingMessage] = useState('');
     const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
+    const [streamingConversationId, setStreamingConversationId] = useState<number | null>(null);
 
     // Settings State
     const [modelManagementOpen, setModelManagementOpen] = useState(false);
@@ -144,6 +145,7 @@ function App() {
                     setIsStreaming(false);
                     setStreamingMessage('');
                     setCurrentRequestId(null);
+                    setStreamingConversationId(null);
                     setIsLoading(false);
 
                     const aiMsg: Message = {
@@ -153,7 +155,11 @@ function App() {
                         content: data.content,
                         created_at: new Date().toISOString()
                     };
-                    setMessages(prev => [...prev, aiMsg]);
+                    
+                    // Only add to current messages if we are still looking at that conversation
+                    if (currentCid === data.conversationId) {
+                        setMessages(prev => [...prev, aiMsg]);
+                    }
                     loadConversations();
                 }
             },
@@ -162,6 +168,7 @@ function App() {
                     setIsStreaming(false);
                     setStreamingMessage('');
                     setCurrentRequestId(null);
+                    setStreamingConversationId(null);
                     setIsLoading(false);
 
                     if (data.error && data.error.includes('Aborted by user')) {
@@ -170,12 +177,15 @@ function App() {
 
                     const errorMsg: Message = {
                         id: Date.now(),
-                        conversation_id: currentCid || 0,
+                        conversation_id: data.conversationId || currentCid || 0,
                         role: 'assistant',
                         content: "Error: " + data.error,
                         created_at: new Date().toISOString()
                     };
-                    setMessages(prev => [...prev, errorMsg]);
+                    
+                    if (currentCid === data.conversationId) {
+                        setMessages(prev => [...prev, errorMsg]);
+                    }
                 }
             }
         });
@@ -277,6 +287,7 @@ function App() {
         // Generate Request ID on frontend to track streaming immediately
         const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         setCurrentRequestId(requestId);
+        setStreamingConversationId(currentCid);
         setIsStreaming(true);
         setIsLoading(true);
         setStreamingMessage('');
@@ -310,6 +321,7 @@ function App() {
                 setIsStreaming(false);
                 setStreamingMessage('');
                 setCurrentRequestId(null);
+                setStreamingConversationId(null);
                 return;
             }
         } catch (err: any) {
@@ -318,6 +330,7 @@ function App() {
             setIsStreaming(false);
             setStreamingMessage('');
             setCurrentRequestId(null);
+            setStreamingConversationId(null);
 
             const errorMsg: Message = {
                 id: Date.now(),
@@ -622,8 +635,8 @@ function App() {
                 messages={messages}
                 onSendMessage={handleSendMessage}
                 onCancelMessage={handleCancelMessage}
-                isLoading={isLoading}
-                isStreaming={isStreaming}
+                isLoading={isLoading && currentCid === streamingConversationId}
+                isStreaming={isStreaming && currentCid === streamingConversationId}
                 streamingMessage={streamingMessage}
                 model={model}
                 setModel={handleSetModel}

@@ -48,5 +48,5 @@ export interface CreateCategoryParams {
 export interface StreamEventHandlers {
     onChunk: (data: { requestId: string; chunk: string }) => void;
     onComplete: (data: { requestId: string; conversationId: number; content: string }) => void;
-    onError: (data: { requestId: string; error: string }) => void;
+    onError: (data: { requestId: string; conversationId: number | null; error: string }) => void;
 }
