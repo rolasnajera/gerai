@@ -280,7 +280,7 @@ function App() {
         }
     }, [model, subcategories, loadConversations, dataService]);
 
-    const handleSendMessage = async (text: string, selectedModel: string) => {
+    const handleSendMessage = async (text: string, selectedModel: string, webSearch?: boolean) => {
         // Validation check for model availability happens in the UI
         // or the backend will throw if no key is found.
 
@@ -307,7 +307,8 @@ function App() {
                 requestId, // Pass ID to the backend
                 conversationId: currentCid,
                 message: text,
-                model: selectedModel
+                model: selectedModel,
+                webSearch: webSearch
             });
 
             // Update conversation ID if it was a new chat

@@ -21,13 +21,15 @@ export async function getOpenAIResponse(
     model: string = 'gpt-5-mini',
     instructions?: string,
     previousResponseId?: string,
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
+    webSearch?: boolean
 ): Promise<OpenAIResponseResult> {
     return new Promise((resolve, reject) => {
         try {
             console.log('--- OpenAI Streaming Request ---');
             console.log('Model:', model);
             console.log('Instructions:', instructions);
+            console.log('webSearch:', webSearch);
             console.log('Input:', input);
             if (previousResponseId) console.log('Previous Response ID:', previousResponseId);
 
@@ -48,6 +50,10 @@ export async function getOpenAIResponse(
 
             if (previousResponseId) {
                 params.previous_response_id = previousResponseId;
+            }
+            
+            if (webSearch) {
+                params.tools = [{ type: 'web_search' }];
             }
 
             // Use the .stream() method

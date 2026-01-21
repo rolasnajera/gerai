@@ -30,6 +30,23 @@ function createWindow() {
     } else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html')).catch(e => console.error('Failed to load file:', e));
     }
+
+    // Intercept navigation to open external links in the system browser
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        if (url !== mainWindow?.webContents.getURL()) {
+            event.preventDefault();
+            shell.openExternal(url);
+        }
+    });
+
+    // Intercept window.open calls to open external links in the system browser
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http')) {
+            shell.openExternal(url);
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
+    });
 }
 
 app.whenReady().then(() => {
@@ -598,7 +615,7 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, systemPrompt, requestId }: { conversationId?: number, message: string, model?: string, systemPrompt?: string, requestId: string }) => {
+    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, systemPrompt, requestId, webSearch }: { conversationId?: number, message: string, model?: string, systemPrompt?: string, requestId: string, webSearch?: boolean }) => {
         let cid = conversationId;
         // Use the requestId provided by the frontend
         // const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -716,7 +733,8 @@ function setupIPC() {
                     messageModel,
                     instructions,
                     lastResponseId,
-                    abortController.signal
+                    abortController.signal,
+                    webSearch
                 );
             }
 
