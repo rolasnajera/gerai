@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useDataService } from '../core/hooks/useDataService';
 import { marked } from 'marked';
 import { Message, ProviderModel } from '../types';
 import MessageItem from './MessageItem';
@@ -40,9 +41,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const [modelMenuOpen, setModelMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeProvider, setActiveProvider] = useState<'all' | 'openai' | 'anthropic' | 'gemini' | 'grok' | 'mistral' | 'mock'>('all');
+    const [isMac, setIsMac] = useState(false);
+    const dataService = useDataService();
     const modelMenuRef = useRef<HTMLDivElement>(null);
 
-    const isMac = window.electron?.platform === 'darwin';
+    useEffect(() => {
+        const fetchPlatform = async () => {
+            const platform = await dataService.getPlatform();
+            setIsMac(platform === 'darwin');
+        };
+        fetchPlatform();
+    }, []);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);

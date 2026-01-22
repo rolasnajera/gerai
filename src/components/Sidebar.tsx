@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useDataService } from '../core/hooks/useDataService';
 import { Conversation, Category, Subcategory, SearchResult } from '../types';
 import logo from '../assets/logo.svg';
 
@@ -62,8 +63,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     onReorderCategory,
     onSortCategoriesAlphabetically,
     onReorderSubcategory
-}) => {
+ }) => {
+    const dataService = useDataService();
     const [appVersion, setAppVersion] = useState<string>('');
+    const [isMac, setIsMac] = useState(false);
     const [menuConfig, setMenuConfig] = useState<{
         x: number;
         y: number;
@@ -131,24 +134,23 @@ const Sidebar: React.FC<SidebarProps> = ({
     const handleSearch = async (query: string) => {
         setSearchQuery(query);
         if (query.trim()) {
-            const results = await window.electron.searchConversations(query);
+            const results = await dataService.searchConversations(query);
             setSearchResults(results);
         } else {
             setSearchResults([]);
         }
     };
 
-    React.useEffect(() => {
-        const fetchVersion = async () => {
-            if (window.electron) {
-                const version = await window.electron.getAppVersion();
-                setAppVersion(version);
-            }
+    useEffect(() => {
+        const fetchData = async () => {
+            const version = await dataService.getAppVersion();
+            setAppVersion(version);
+            
+            const platform = await dataService.getPlatform();
+            setIsMac(platform === 'darwin');
         };
-        fetchVersion();
+        fetchData();
     }, []);
-
-    const isMac = window.electron?.platform === 'darwin';
 
     const toggleCategory = (id: number) => {
         setExpandedCategories(prev => ({ ...prev, [id]: !prev[id] }));

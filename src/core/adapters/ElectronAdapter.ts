@@ -165,6 +165,10 @@ export class ElectronAdapter implements IDataProvider {
         return window.electron.getAppVersion();
     }
 
+    async getPlatform(): Promise<string> {
+        return window.electron.platform;
+    }
+
     async checkForUpdates(): Promise<{ success: boolean; updateInfo?: any; message?: string }> {
         return window.electron.checkForUpdates();
     }
