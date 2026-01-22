@@ -30,6 +30,23 @@ function createWindow() {
     } else {
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html')).catch(e => console.error('Failed to load file:', e));
     }
+
+    // Intercept navigation to open external links in the system browser
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        if (url !== mainWindow?.webContents.getURL()) {
+            event.preventDefault();
+            shell.openExternal(url);
+        }
+    });
+
+    // Intercept window.open calls to open external links in the system browser
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http')) {
+            shell.openExternal(url);
+            return { action: 'deny' };
+        }
+        return { action: 'allow' };
+    });
 }
 
 app.whenReady().then(() => {
@@ -404,7 +421,11 @@ function setupIPC() {
     ipcMain.handle('get-messages', async (_event: IpcMainInvokeEvent, cid: number) => {
         try {
             if (!cid) return [];
-            return await all('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC', [cid]);
+            const messages = await all('SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC', [cid]);
+            return messages.map(msg => ({
+                ...msg,
+                citations: msg.citations ? JSON.parse(msg.citations) : undefined
+            }));
         } catch (err) {
             console.error(err);
             return [];
@@ -598,7 +619,7 @@ function setupIPC() {
         }
     });
 
-    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, systemPrompt, requestId }: { conversationId?: number, message: string, model?: string, systemPrompt?: string, requestId: string }) => {
+    ipcMain.handle('send-message', async (_event: IpcMainInvokeEvent, { conversationId, message, model, systemPrompt, requestId, webSearch }: { conversationId?: number, message: string, model?: string, systemPrompt?: string, requestId: string, webSearch?: boolean }) => {
         let cid = conversationId;
         // Use the requestId provided by the frontend
         // const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -716,7 +737,8 @@ function setupIPC() {
                     messageModel,
                     instructions,
                     lastResponseId,
-                    abortController.signal
+                    abortController.signal,
+                    webSearch
                 );
             }
 
@@ -726,6 +748,7 @@ function setupIPC() {
             let aiContent = aiResponse.output_text;
             const newResponseId = aiResponse.response_id;
             const isAborted = aiResponse.aborted;
+            const citations = aiResponse.citations;
 
             if (isAborted) {
                 aiContent += (aiContent ? "\n\n" : "") + "[Response canceled]";
@@ -733,7 +756,13 @@ function setupIPC() {
 
             // 5. Save AI Msg (even if aborted, if there's content or it was aborted)
             if (aiContent || isAborted) {
-                await run('INSERT INTO messages (conversation_id, role, content, model) VALUES (?, ?, ?, ?)', [cid, 'assistant', aiContent || '[Response canceled]', messageModel]);
+                await run('INSERT INTO messages (conversation_id, role, content, model, citations) VALUES (?, ?, ?, ?, ?)', [
+                    cid,
+                    'assistant',
+                    aiContent || '[Response canceled]',
+                    messageModel,
+                    citations ? JSON.stringify(citations) : null
+                ]);
             }
 
             // 6. Update Conversation State
@@ -758,7 +787,8 @@ function setupIPC() {
                     conversationId: cid,
                     content: aiContent,
                     response_id: newResponseId,
-                    aborted: isAborted
+                    aborted: isAborted,
+                    citations: citations
                 });
             }
 

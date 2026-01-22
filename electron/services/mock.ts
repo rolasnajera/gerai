@@ -2,6 +2,7 @@ interface MockResponseResult {
     output_text: string;
     response_id?: string;
     aborted?: boolean;
+    citations?: any[];
 }
 
 export async function getMockResponse(

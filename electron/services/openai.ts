@@ -12,6 +12,7 @@ interface OpenAIResponseResult {
     output_text: string;
     response_id?: string;
     aborted?: boolean;
+    citations?: any[];
 }
 
 export async function getOpenAIResponse(
@@ -21,13 +22,15 @@ export async function getOpenAIResponse(
     model: string = 'gpt-5-mini',
     instructions?: string,
     previousResponseId?: string,
-    abortSignal?: AbortSignal
+    abortSignal?: AbortSignal,
+    webSearch?: boolean
 ): Promise<OpenAIResponseResult> {
     return new Promise((resolve, reject) => {
         try {
             console.log('--- OpenAI Streaming Request ---');
             console.log('Model:', model);
             console.log('Instructions:', instructions);
+            console.log('webSearch:', webSearch);
             console.log('Input:', input);
             if (previousResponseId) console.log('Previous Response ID:', previousResponseId);
 
@@ -48,6 +51,10 @@ export async function getOpenAIResponse(
 
             if (previousResponseId) {
                 params.previous_response_id = previousResponseId;
+            }
+            
+            if (webSearch) {
+                params.tools = [{ type: 'web_search' }];
             }
 
             // Use the .stream() method
@@ -105,9 +112,46 @@ export async function getOpenAIResponse(
                     console.error('Failed to write debug log:', logError);
                 }
 
+                // Extract citations using a recursive search for maximum resilience
+                const citations: any[] = [];
+                
+                function findCitations(obj: any) {
+                    if (!obj || typeof obj !== 'object') return;
+                    
+                    if (obj.type === 'url_citation') {
+                        citations.push({
+                            url: obj.url,
+                            title: obj.title || obj.url,
+                            start_index: obj.start_index,
+                            end_index: obj.end_index
+                        });
+                        return;
+                    }
+                    
+                    // Recursively search in all properties
+                    for (const key in obj) {
+                        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                            const val = obj[key];
+                            if (Array.isArray(val)) {
+                                val.forEach(item => findCitations(item));
+                            } else if (typeof val === 'object') {
+                                findCitations(val);
+                            }
+                        }
+                    }
+                }
+
+                if (event?.response) {
+                    console.log('--- Deep Citation Extraction ---');
+                    findCitations(event.response);
+                }
+
+                console.log(`Extracted ${citations.length} citations:`, citations.map(c => c.url));
+
                 resolve({
                     output_text: accumulatedText,
-                    response_id: responseId
+                    response_id: responseId,
+                    citations: citations.length > 0 ? citations : undefined
                 });
             });
 

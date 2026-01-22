@@ -8,7 +8,7 @@ import ProviderIcon from './ProviderIcon';
 interface ChatInterfaceProps {
     currentConversationId: number | null;
     messages: Message[];
-    onSendMessage: (text: string, model: string) => void;
+    onSendMessage: (text: string, model: string, webSearch?: boolean) => void;
     onCancelMessage: () => void;
     isLoading: boolean;
     isStreaming: boolean;
@@ -43,6 +43,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const [activeProvider, setActiveProvider] = useState<'all' | 'openai' | 'anthropic' | 'gemini' | 'grok' | 'mistral' | 'mock'>('all');
     const [isMac, setIsMac] = useState(false);
     const dataService = useDataService();
+    const [isWebSearchEnabled, setIsWebSearchEnabled] = useState(false);
     const modelMenuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -129,7 +130,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || isLoading || isStreaming) return;
-        onSendMessage(input, model);
+        onSendMessage(input, model, isWebSearchEnabled);
         setInput('');
         if (textareaRef.current) {
             textareaRef.current.style.height = 'auto'; // Reset height
@@ -399,8 +400,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
                                 <button
                                     type="button"
-                                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-full transition-all cursor-default"
-                                    title="activation soon"
+                                    onClick={() => setIsWebSearchEnabled(!isWebSearchEnabled)}
+                                    className={`p-2 rounded-full transition-all ${isWebSearchEnabled ? 'text-blue-500 bg-blue-50 dark:bg-blue-900/40' : 'text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20'}`}
+                                    title="Search the web"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
                                 </button>
